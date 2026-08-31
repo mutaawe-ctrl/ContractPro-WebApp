@@ -736,10 +736,9 @@ def get_sales_query(filters=None, params=None):
             FROM sales s 
             LEFT JOIN client_list c ON s.client_id = c.id 
             LEFT JOIN area_list a ON s.area_id = a.id 
-            WHERE s.user_id = ?
+            WHERE 1=1
     '''
-    # Prepend user_id to params for the base WHERE s.user_id = ?
-    base_params = [get_user_filter()]
+    base_params = []
     if filters:
         query += filters
     if params:
@@ -1132,7 +1131,7 @@ def inject_vars():
     system_name = meta.get('name', 'COMPANY DATABASE')
     profiles_enrolled = (meta.get('profiles_enrolled') == '1')
 
-    cs = conn.execute("SELECT id, name FROM client_list WHERE delete_flag = 0 AND user_id = ?", (get_user_filter(),)).fetchall()
+    cs = conn.execute("SELECT id, name FROM client_list WHERE delete_flag = 0").fetchall()
     as_ = conn.execute("SELECT id, name FROM area_list WHERE delete_flag = 0 ORDER BY name COLLATE NOCASE").fetchall()
     last = conn.execute("SELECT id FROM sales ORDER BY id DESC LIMIT 1").fetchone()
     next_id = f"{(last[0] if last else 0) + 1 :03d}"
@@ -2185,8 +2184,8 @@ def api_alerts():
 @app.route('/sales')
 def sales():
     conn = get_db()
-    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0 AND user_id = ?", (get_user_filter(),)).fetchall()
-    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 AND user_id = ? ORDER BY name COLLATE NOCASE", (get_user_filter(),)).fetchall()
+    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0").fetchall()
+    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 ORDER BY name COLLATE NOCASE").fetchall()
     last = conn.execute("SELECT id FROM sales ORDER BY id DESC LIMIT 1").fetchone()
     conn.close()
     next_id = f"{ (last[0] if last else 0) + 1 :03d}"
@@ -2242,8 +2241,8 @@ def demands():
     if status: where += " AND s.payment_status = ?"; params.append(status)
     
     conn = get_db()
-    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0 AND user_id = ?", (get_user_filter(),)).fetchall()
-    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 AND user_id = ? ORDER BY name COLLATE NOCASE", (get_user_filter(),)).fetchall()
+    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0").fetchall()
+    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 ORDER BY name COLLATE NOCASE").fetchall()
     conn.close()
     
     return render_template('demands.html', active_page='demands', demands=get_sales_query(where, params), clients=cs, areas=as_)
@@ -2298,8 +2297,8 @@ def sales_datatables():
 @app.route('/all_entries')
 def all_entries():
     conn = get_db()
-    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0 AND user_id = ?", (get_user_filter(),)).fetchall()
-    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 AND user_id = ? ORDER BY name COLLATE NOCASE", (get_user_filter(),)).fetchall()
+    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0").fetchall()
+    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 ORDER BY name COLLATE NOCASE").fetchall()
     conn.close()
     
     return render_template('all_entries.html', active_page='all_entries', demands=[], clients=cs, areas=as_)
@@ -2540,8 +2539,8 @@ def reports():
     }
     
     conn = get_db()
-    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0 AND user_id = ?", (get_user_filter(),)).fetchall()
-    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 AND user_id = ? ORDER BY name COLLATE NOCASE", (get_user_filter(),)).fetchall()
+    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0").fetchall()
+    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 ORDER BY name COLLATE NOCASE").fetchall()
     # Fetch all unique contract types
     types_res = conn.execute("SELECT DISTINCT contract_type FROM sales WHERE contract_type IS NOT NULL AND contract_type != ''").fetchall()
     all_types = [t[0] for t in types_res]
@@ -3750,8 +3749,8 @@ def manual_create_launcher():
 @app.route('/sales/edit/<int:id>')
 def edit_sale(id):
     conn = get_db(); sale = conn.execute("SELECT * FROM sales WHERE id = ?", (id,)).fetchone()
-    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0 AND user_id = ?", (get_user_filter(),)).fetchall()
-    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 AND user_id = ? ORDER BY name COLLATE NOCASE", (get_user_filter(),)).fetchall(); conn.close()
+    cs = conn.execute("SELECT * FROM client_list WHERE delete_flag = 0").fetchall()
+    as_ = conn.execute("SELECT * FROM area_list WHERE delete_flag = 0 ORDER BY name COLLATE NOCASE").fetchall(); conn.close()
     settings = get_settings()
     return render_template('sales.html', active_page='demands', clients=cs, areas=as_, sale=sale, is_edit=True, settings=settings)
 
