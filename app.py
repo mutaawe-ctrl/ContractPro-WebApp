@@ -83,9 +83,9 @@ def get_app_version():
     except Exception:
         return "1.0.0"
 
-# Global State for Document
+# Global State for Document & Cloud Storage
 GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME')
-GCS_DB_BLOB_NAME = os.environ.get('GCS_DB_BLOB_NAME', 'company_contracts.db')
+GCS_AUTH_BLOB_NAME = os.environ.get('GCS_AUTH_BLOB_NAME', 'central/auth.db')
 
 # --- GOOGLE OAUTH CONFIGURATION ---
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
@@ -93,21 +93,18 @@ GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 if GCS_BUCKET_NAME or os.environ.get('PORT') or os.environ.get('K_SERVICE'):
-    # Google Cloud Run / Server mode: write in the temporary memory directory (/tmp)
+    # Google Cloud Run / Server mode: write in temporary memory directory (/tmp)
     APP_DATA_DIR = "/tmp/ContractPro_Data"
-    CURRENT_DB = os.path.join(APP_DATA_DIR, "company_contracts.db")
 else:
     APP_DATA_DIR = os.path.expanduser("~/Documents/ContractPro_Data")
-    if ARG_DB_PATH:
-        CURRENT_DB = ARG_DB_PATH
-    elif os.path.exists("company_contracts.db"):
-        CURRENT_DB = os.path.abspath("company_contracts.db")
-    else:
-        CURRENT_DB = os.path.join(APP_DATA_DIR, "company_contracts.db")
 
-if not os.path.exists(APP_DATA_DIR):
-    os.makedirs(APP_DATA_DIR, exist_ok=True)
-    os.makedirs(os.path.join(APP_DATA_DIR, "uploads"), exist_ok=True)
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+os.makedirs(os.path.join(APP_DATA_DIR, "central"), exist_ok=True)
+os.makedirs(os.path.join(APP_DATA_DIR, "users"), exist_ok=True)
+os.makedirs(os.path.join(APP_DATA_DIR, "uploads"), exist_ok=True)
+
+CENTRAL_AUTH_DB_PATH = os.path.join(APP_DATA_DIR, "central", "auth.db")
+CURRENT_DB = None
 
 BACKUP_DIR = os.path.join(APP_DATA_DIR, "backups")
 if not os.path.exists(BACKUP_DIR):
@@ -115,62 +112,139 @@ if not os.path.exists(BACKUP_DIR):
 
 RECENT_FILES_PATH = os.path.join(APP_DATA_DIR, "recent_files.json")
 
+# --- PER-USER & CENTRAL PATH HELPERS ---
+def get_user_data_dir(user_id=None):
+    """Return the base storage directory for a specific user."""
+    if user_id is None and has_app_context():
+        user_id = session.get('user_id')
+    if not user_id:
+        user_id = "default"
+    u_dir = os.path.join(APP_DATA_DIR, "users", str(user_id))
+    os.makedirs(u_dir, exist_ok=True)
+    return u_dir
+
+def get_user_db_path(user_id=None):
+    """Return the private SQLite database path for a user."""
+    global CURRENT_DB
+    if CURRENT_DB:
+        return CURRENT_DB
+    if ARG_DB_PATH and not GCS_BUCKET_NAME:
+        return ARG_DB_PATH
+    return os.path.join(get_user_data_dir(user_id), "company_contracts.db")
+
+def get_user_upload_dir(user_id=None):
+    """Return the private upload folder for a user."""
+    up_dir = os.path.join(get_user_data_dir(user_id), "uploads")
+    os.makedirs(up_dir, exist_ok=True)
+    return up_dir
+
+def get_db_path():
+    """Backward-compatible helper returning the current active database path."""
+    return get_user_db_path()
+
 # --- GOOGLE CLOUD STORAGE INTEGRATION ---
-def download_db_from_gcs():
-    """Download database file from Google Cloud Storage to /tmp."""
+def download_auth_db_from_gcs():
+    """Download central auth database from Google Cloud Storage to local storage."""
     if not GCS_BUCKET_NAME:
         return
     try:
         from google.cloud import storage
         client = storage.Client()
         bucket = client.bucket(GCS_BUCKET_NAME)
-        blob = bucket.blob(GCS_DB_BLOB_NAME)
+        blob = bucket.blob(GCS_AUTH_BLOB_NAME)
         if blob.exists():
-            print(f"Downloading database from GCS bucket '{GCS_BUCKET_NAME}'...")
-            blob.download_to_filename(CURRENT_DB)
-            print("Database downloaded successfully.")
+            print(f"Downloading auth database from GCS blob '{GCS_AUTH_BLOB_NAME}'...")
+            os.makedirs(os.path.dirname(CENTRAL_AUTH_DB_PATH), exist_ok=True)
+            blob.download_to_filename(CENTRAL_AUTH_DB_PATH)
+            print("Auth database downloaded successfully.")
         else:
-            print(f"Database file '{GCS_DB_BLOB_NAME}' not found in GCS bucket. A new database will be created on startup.")
+            print(f"Auth database blob '{GCS_AUTH_BLOB_NAME}' not found in GCS bucket. Will initialize fresh.")
     except Exception as e:
-        print(f"Failed to download database from GCS: {e}")
+        print(f"Failed to download auth database from GCS: {e}")
 
-def upload_db_to_gcs():
-    """Upload SQLite database file to Google Cloud Storage."""
+def upload_auth_db_to_gcs():
+    """Upload central auth database to Google Cloud Storage."""
     if not GCS_BUCKET_NAME:
         return
     try:
-        if not os.path.exists(CURRENT_DB) or os.path.getsize(CURRENT_DB) == 0:
-            print("Database file is empty or missing. Skipping GCS upload.")
+        if not os.path.exists(CENTRAL_AUTH_DB_PATH) or os.path.getsize(CENTRAL_AUTH_DB_PATH) == 0:
             return
         from google.cloud import storage
         client = storage.Client()
         bucket = client.bucket(GCS_BUCKET_NAME)
-        blob = bucket.blob(GCS_DB_BLOB_NAME)
-        print(f"Uploading database to GCS bucket '{GCS_BUCKET_NAME}'...")
-        blob.upload_from_filename(CURRENT_DB)
-        print("Database uploaded successfully.")
+        blob = bucket.blob(GCS_AUTH_BLOB_NAME)
+        print(f"Uploading auth database to GCS blob '{GCS_AUTH_BLOB_NAME}'...")
+        blob.upload_from_filename(CENTRAL_AUTH_DB_PATH)
+        print("Auth database uploaded successfully.")
     except Exception as e:
-        print(f"Failed to upload database to GCS: {e}")
+        print(f"Failed to upload auth database to GCS: {e}")
 
-def ensure_local_assets():
-    """Ensure that the files stored in company_settings BLOBs are written to UPLOAD_FOLDER if missing on disk."""
-    conn = get_db()
+def download_user_db_from_gcs(user_id):
+    """Download a user's private database from GCS."""
+    if not GCS_BUCKET_NAME or not user_id:
+        return
+    try:
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob_name = f"users/{user_id}/company_contracts.db"
+        blob = bucket.blob(blob_name)
+        db_path = get_user_db_path(user_id)
+        if blob.exists():
+            print(f"Downloading database for user {user_id} from GCS blob '{blob_name}'...")
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            blob.download_to_filename(db_path)
+            print(f"User {user_id} database downloaded successfully.")
+        else:
+            print(f"User {user_id} database blob not in GCS. Initializing fresh workspace.")
+            init_db(user_id)
+            upload_user_db_to_gcs(user_id)
+    except Exception as e:
+        print(f"Failed to download user {user_id} database from GCS: {e}")
+
+def upload_user_db_to_gcs(user_id=None):
+    """Upload a user's private database to GCS."""
+    if not GCS_BUCKET_NAME:
+        return
+    if user_id is None and has_app_context():
+        user_id = session.get('user_id')
+    if not user_id:
+        return
+    try:
+        db_path = get_user_db_path(user_id)
+        if not os.path.exists(db_path) or os.path.getsize(db_path) == 0:
+            return
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket(GCS_BUCKET_NAME)
+        blob_name = f"users/{user_id}/company_contracts.db"
+        blob = bucket.blob(blob_name)
+        print(f"Uploading user {user_id} database to GCS blob '{blob_name}'...")
+        blob.upload_from_filename(db_path)
+        print(f"User {user_id} database uploaded successfully.")
+    except Exception as e:
+        print(f"Failed to upload user {user_id} database to GCS: {e}")
+
+def ensure_local_assets(user_id=None):
+    """Ensure that the files stored in company_settings BLOBs are written to the user's upload directory if missing on disk."""
+    if user_id is None and has_app_context():
+        user_id = session.get('user_id')
+    conn = get_db(user_id)
     try:
         settings = conn.execute("SELECT * FROM company_settings WHERE id = 1").fetchone()
         if not settings:
             return
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        user_upload_dir = get_user_upload_dir(user_id)
         for key in ['logo', 'header', 'footer', 'icon']:
             blob = settings[f'{key}_blob']
             fname = settings[f'{key}_path']
             if blob and fname:
-                local_path = os.path.join(UPLOAD_FOLDER, fname)
+                local_path = os.path.join(user_upload_dir, fname)
                 if not os.path.exists(local_path):
-                    print(f"Restoring cached asset {fname} to local storage...")
                     with open(local_path, 'wb') as f:
                         f.write(blob)
     except Exception as e:
-        print(f"Failed to ensure local assets: {e}")
+        print(f"Failed to ensure local assets for user {user_id}: {e}")
     finally:
         conn.close()
 
@@ -192,27 +266,48 @@ def add_recent_file(path):
     with open(RECENT_FILES_PATH, 'w') as f:
         json.dump(files, f)
 
-def get_db_path():
-    global CURRENT_DB
-    return CURRENT_DB if CURRENT_DB else os.path.join(APP_DATA_DIR, "company_contracts.db")
-
-def get_db():
-    # Re-use a per-request connection if one is already open (avoids repeated opens within a request)
-    if has_app_context() and getattr(g, '_shared_db_conn', None) is not None:
+def get_auth_db():
+    """Get connection to the central authentication and user accounts database."""
+    if has_app_context() and getattr(g, '_auth_db_conn', None) is not None:
         try:
-            # Check if connection is still open
+            g._auth_db_conn.total_changes
+            return g._auth_db_conn
+        except sqlite3.ProgrammingError:
+            g._auth_db_conn = None
+
+    os.makedirs(os.path.dirname(CENTRAL_AUTH_DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(CENTRAL_AUTH_DB_PATH, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    if has_app_context():
+        g._auth_db_conn = conn
+        if 'db_conns' not in g:
+            g.db_conns = []
+        g.db_conns.append(conn)
+    return conn
+
+def get_db(user_id=None):
+    """Get connection to the private SQLite database for the current logged-in user."""
+    if user_id is None and has_app_context():
+        user_id = session.get('user_id')
+    
+    db_path = get_user_db_path(user_id)
+    
+    # Re-use per-request connection if matching the current user context
+    if (has_app_context() and getattr(g, '_shared_db_conn', None) is not None 
+            and getattr(g, '_shared_db_user_id', None) == user_id):
+        try:
             g._shared_db_conn.total_changes
             return g._shared_db_conn
         except sqlite3.ProgrammingError:
             g._shared_db_conn = None
             
-    conn = sqlite3.connect(get_db_path(), timeout=30)
+    conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
-    # Only set foreign_keys — WAL/synchronous/wal_autocheckpoint are persistent
-    # settings that survive across connections; no need to re-apply every time.
     conn.execute("PRAGMA foreign_keys = ON")
     if has_app_context():
         g._shared_db_conn = conn
+        g._shared_db_user_id = user_id
         if 'db_conns' not in g:
             g.db_conns = []
         g.db_conns.append(conn)
@@ -405,8 +500,9 @@ def sync_db_to_gcs_after_request(response):
     # Only upload if GCS bucket is configured, and it was a successful write operation
     if GCS_BUCKET_NAME and request.method in ['POST', 'PUT', 'DELETE']:
         if 200 <= response.status_code < 400:
-            # Upload database synchronously to guarantee persistence on Cloud Run
-            upload_db_to_gcs()
+            if session.get('user_id'):
+                upload_user_db_to_gcs(session.get('user_id'))
+            upload_auth_db_to_gcs()
     return response
 
 
@@ -645,26 +741,39 @@ def get_sales_query(filters=None, params=None):
 # --- PDF ENGINE ---
 
 class DemandNotePDF(FPDF):
-    def __init__(self, settings):
+    def __init__(self, settings, user_id=None):
         super().__init__()
         self.settings = settings
+        self.user_upload_dir = get_user_upload_dir(user_id)
+
+    def _resolve_asset_path(self, key):
+        filename = self.settings.get(key)
+        if not filename:
+            return None
+        # Check user's private upload folder
+        p = os.path.join(self.user_upload_dir, filename)
+        if os.path.exists(p):
+            return p
+        # Check central/legacy upload folders
+        for fallback in [os.path.join(APP_DATA_DIR, "uploads", filename), os.path.join(BASE_DIR, "uploads", filename)]:
+            if os.path.exists(fallback):
+                return fallback
+        return None
 
     def header(self):
         # Header Image (if exists)
-        if self.settings.get('header_path'):
-            path = os.path.join(UPLOAD_FOLDER, self.settings['header_path'])
-            if os.path.exists(path):
-                self.image(path, x=0, y=0, w=210)
-                self.ln(45)
-                return
+        header_path = self._resolve_asset_path('header_path')
+        if header_path:
+            self.image(header_path, x=0, y=0, w=210)
+            self.ln(45)
+            return
 
         # Fallback Header with Logo and Info
         y_start = self.get_y()
-        if self.settings.get('logo_path'):
-            path = os.path.join(UPLOAD_FOLDER, self.settings['logo_path'])
-            if os.path.exists(path):
-                self.image(path, x=10, y=y_start, w=35)
-                self.set_x(50)
+        logo_path = self._resolve_asset_path('logo_path')
+        if logo_path:
+            self.image(logo_path, x=10, y=y_start, w=35)
+            self.set_x(50)
         else:
             self.set_x(10)
 
@@ -676,12 +785,12 @@ class DemandNotePDF(FPDF):
             self.cell(0, 15, comp_name, ln=1, align='L')
         
         # Details
-        self.set_x(50 if self.settings.get('logo_path') else 10)
+        self.set_x(50 if logo_path else 10)
         self.set_font('helvetica', '', 10)
         self.set_text_color(100, 116, 139) # Slate 500
         if self.settings.get('address'):
             self.cell(0, 6, self.settings.get('address'), ln=1)
-        self.set_x(50 if self.settings.get('logo_path') else 10)
+        self.set_x(50 if logo_path else 10)
         contact_str = ""
         if self.settings.get('contact'): contact_str += f"Tel: {self.settings.get('contact')} "
         if self.settings.get('email'): contact_str += f"| Email: {self.settings.get('email')}"
@@ -696,11 +805,10 @@ class DemandNotePDF(FPDF):
 
     def footer(self):
         # Footer Image (if exists)
-        if self.settings.get('footer_path'):
-            path = os.path.join(UPLOAD_FOLDER, self.settings['footer_path'])
-            if os.path.exists(path):
-                self.image(path, x=0, y=self.h - 30, w=210)
-                return
+        footer_path = self._resolve_asset_path('footer_path')
+        if footer_path:
+            self.image(footer_path, x=0, y=self.h - 30, w=210)
+            return
 
         self.set_y(-40)
         self.set_font('helvetica', 'I', 8)
@@ -740,7 +848,7 @@ def google_login_page():
             flash("Please enter your username and password.")
             return render_template('login.html')
 
-        conn = get_db()
+        conn = get_auth_db()
         user = conn.execute(
             "SELECT * FROM users WHERE LOWER(COALESCE(username, name)) = ?",
             (username,)
@@ -768,21 +876,17 @@ def google_login_page():
             flash("Invalid username or password.")
             return render_template('login.html')
 
-        # If unassigned data exists, assign it to the first user logging in
-        first_user = conn.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()
-        if first_user and first_user['id'] == user['id']:
-            conn.execute("UPDATE client_list SET user_id = ? WHERE user_id IS NULL", (user['id'],))
-            conn.execute("UPDATE area_list SET user_id = ? WHERE user_id IS NULL", (user['id'],))
-            conn.execute("UPDATE sales SET user_id = ? WHERE user_id IS NULL", (user['id'],))
-            conn.commit()
-
-        conn.close()
+        user_id = user['id']
+        # Download and initialize the private database and assets for this user
+        download_user_db_from_gcs(user_id)
+        init_db(user_id)
+        ensure_local_assets(user_id)
 
         session.clear()
-        session['user_id'] = user['id']
+        session['user_id'] = user_id
         session['user_name'] = user['name']
         session['is_admin'] = user['is_admin']
-        session['current_db_path'] = get_db_path()
+        session['current_db_path'] = get_user_db_path(user_id)
         flash(f"Welcome back, {user['name']}!")
         return redirect(url_for('dashboard'))
 
@@ -819,14 +923,13 @@ def register():
             flash("Passwords do not match.")
             return render_template('register.html')
 
-        conn = get_db()
+        conn = get_auth_db()
         # Check if username already taken
         existing = conn.execute(
             "SELECT id FROM users WHERE LOWER(COALESCE(username, name)) = ?",
             (username,)
         ).fetchone()
         if existing:
-            conn.close()
             flash("That username is already taken. Please choose another.")
             return render_template('register.html')
 
@@ -840,15 +943,12 @@ def register():
             (name, phone, username, hashed, is_admin)
         )
         new_user_id = cur.lastrowid
-
-        # If this is the very first user registering, assign existing unowned data to them
-        if user_count == 0 and new_user_id:
-            conn.execute("UPDATE client_list SET user_id = ? WHERE user_id IS NULL", (new_user_id,))
-            conn.execute("UPDATE area_list SET user_id = ? WHERE user_id IS NULL", (new_user_id,))
-            conn.execute("UPDATE sales SET user_id = ? WHERE user_id IS NULL", (new_user_id,))
-
         conn.commit()
-        conn.close()
+        upload_auth_db_to_gcs()
+
+        # Initialize fresh workspace for the newly registered user
+        init_db(new_user_id)
+        upload_user_db_to_gcs(new_user_id)
 
         flash("Account created! You can now sign in.")
         return redirect(url_for('google_login_page'))
@@ -884,8 +984,8 @@ def google_callback():
             flash("Your Google account does not have a verified email address.")
             return redirect(url_for('google_login_page'))
 
-        # Find a matching user by google_email or email
-        conn = get_db()
+        # Find a matching user in central auth DB by google_email or email
+        conn = get_auth_db()
         user = conn.execute(
             "SELECT * FROM users WHERE LOWER(google_email) = ? OR LOWER(email) = ?",
             (google_email, google_email)
@@ -895,21 +995,30 @@ def google_callback():
             # Auto-create user account for this Google email
             display_name = user_info.get('name') or google_email.split('@')[0]
             user_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-            is_admin = 1 if user_count == 0 else 1  # Give admin access to Google users
-            conn.execute(
+            is_admin = 1 if user_count == 0 else 0
+            cur = conn.cursor()
+            cur.execute(
                 "INSERT INTO users (name, email, google_email, is_admin) VALUES (?, ?, ?, ?)",
                 (display_name, google_email, google_email, is_admin)
             )
             conn.commit()
-            user = conn.execute("SELECT * FROM users WHERE LOWER(google_email) = ?", (google_email,)).fetchone()
-
-        conn.close()
+            user_id = cur.lastrowid
+            upload_auth_db_to_gcs()
+            user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+            init_db(user_id)
+            upload_user_db_to_gcs(user_id)
+        else:
+            user_id = user['id']
+            download_user_db_from_gcs(user_id)
+            init_db(user_id)
+            ensure_local_assets(user_id)
 
         # Log the user in
         session.clear()
-        session['user_id'] = user['id']
+        session['user_id'] = user_id
         session['user_name'] = user['name']
         session['is_admin'] = user['is_admin']
+        session['current_db_path'] = get_user_db_path(user_id)
         flash(f"Welcome back, {user['name']}!")
         return redirect(url_for('dashboard'))
 
@@ -928,25 +1037,32 @@ def debug_gcs():
         bucket = client.bucket(GCS_BUCKET_NAME)
         blobs = list(bucket.list_blobs())
         blob_names = [b.name for b in blobs]
+        curr_db = get_user_db_path()
         return jsonify({
             "bucket_name": GCS_BUCKET_NAME,
-            "db_blob_name": GCS_DB_BLOB_NAME,
+            "auth_blob_name": GCS_AUTH_BLOB_NAME,
             "files_in_bucket": blob_names,
-            "local_db_exists": os.path.exists(CURRENT_DB),
-            "local_db_size": os.path.getsize(CURRENT_DB) if os.path.exists(CURRENT_DB) else 0,
-            "current_db_path": CURRENT_DB,
+            "local_db_exists": os.path.exists(curr_db),
+            "local_db_size": os.path.getsize(curr_db) if os.path.exists(curr_db) else 0,
+            "current_db_path": curr_db,
             "app_data_dir": APP_DATA_DIR
         })
     except Exception as e:
         return jsonify({
             "error": str(e),
             "bucket_name": GCS_BUCKET_NAME,
-            "db_blob_name": GCS_DB_BLOB_NAME
+            "auth_blob_name": GCS_AUTH_BLOB_NAME
         }), 500
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    user_upload_dir = get_user_upload_dir()
+    if os.path.exists(os.path.join(user_upload_dir, filename)):
+        return send_from_directory(user_upload_dir, filename)
+    for fallback in [os.path.join(APP_DATA_DIR, "uploads"), os.path.join(BASE_DIR, "uploads")]:
+        if os.path.exists(os.path.join(fallback, filename)):
+            return send_from_directory(fallback, filename)
+    return "File not found", 404
 
 @app.route('/branding_asset/<asset_type>')
 def branding_asset(asset_type):
@@ -971,9 +1087,9 @@ def branding_asset(asset_type):
 
 @app.context_processor
 def inject_vars():
-    if not CURRENT_DB:
+    if not session.get('user_id') and not CURRENT_DB:
         return {
-            "system_name": "DATABASE MANAGER",
+            "system_name": "ContractPro",
             "active_page": "",
             "settings": {},
             "branding": {},
@@ -1111,37 +1227,27 @@ def check_db():
     auth_endpoints = [
         'google_login_page', 'google_login', 'google_callback',
         'select_user', 'login_user', 'biometric_auth', 'get_user_avatar',
-        'branding_asset', 'static', 'print_client_statement', 'print_demand_note',
+        'branding_asset', 'static', 'uploaded_file', 'print_client_statement', 'print_demand_note',
         'print_financial_report', 'print_payments_report', 'print_ura_report',
         'close_database', 'debug_gcs', 'register'
     ]
 
-    if not CURRENT_DB:
-        if request.endpoint not in ['dashboard', 'static'] + auth_endpoints:
-            return redirect(url_for('google_login_page'))
-        return
-
-    # Track active database path to detect dynamic loads/switches
+    # Track active database path for the current user
     db_path = get_db_path()
-    old_db_path = session.get('current_db_path')
-    if old_db_path and old_db_path != db_path:
-        session.pop('user_id', None)
-        session.pop('user_name', None)
-        session.pop('is_admin', None)
     session['current_db_path'] = db_path
 
     # Ensure user is logged in
     if not session.get('user_id') and request.endpoint not in auth_endpoints:
         return redirect(url_for('google_login_page'))
 
-    # Validate that the logged-in user still exists in the database
+    # Validate that the logged-in user still exists in the auth database
     if session.get('user_id'):
         if session.get('user_validated_db') != db_path:
-            conn = get_db()
+            conn = get_auth_db()
             user_exists = conn.execute("SELECT id FROM users WHERE id = ?", (session['user_id'],)).fetchone()
-            conn.close()
             if not user_exists:
                 session.clear()
+                return redirect(url_for('google_login_page'))
             else:
                 session['user_validated_db'] = db_path
 
@@ -1178,17 +1284,16 @@ def check_db():
         perm_key = _ENDPOINT_PERMS.get(request.endpoint)
         if perm_key:
             try:
-                conn2 = get_db()
+                conn2 = get_auth_db()
                 row = conn2.execute("SELECT permissions FROM users WHERE id = ?",
                                     (session['user_id'],)).fetchone()
-                conn2.close()
                 perms = _pjson.loads(row['permissions'] or '{}') if row else {}
                 # If the key is explicitly set to False, deny access
                 if perms.get(perm_key) is False:
                     flash("Access Denied: Your administrator has restricted access to this section.")
                     return redirect(url_for('dashboard'))
             except Exception:
-                pass  # On error, allow through (fail-open for access, not security-critical)
+                pass  # On error, allow through
 
 
 @app.route('/close_database')
@@ -1238,7 +1343,6 @@ def web_new_project():
 
 @app.route('/api/web/upload_database', methods=['POST'])
 def web_upload_database():
-    global CURRENT_DB
     if 'file' not in request.files:
         return jsonify({"success": False, "error": "No file uploaded."}), 400
     file = request.files['file']
@@ -1248,23 +1352,17 @@ def web_upload_database():
     if not (file.filename.endswith('.db') or file.filename.endswith('.mdb')):
         return jsonify({"success": False, "error": "Only .db or .mdb database files are supported."}), 400
         
-    if GCS_BUCKET_NAME:
-        # In cloud mode, overwrite the active database file path
-        dest_path = CURRENT_DB
-        if os.path.exists(dest_path):
-            try: os.remove(dest_path)
-            except: pass
-        file.save(dest_path)
-        init_db()
-        upload_db_to_gcs()
-        ensure_local_assets()
-    else:
-        filename = secure_filename(file.filename)
-        dest_path = os.path.join(APP_DATA_DIR, filename)
-        file.save(dest_path)
-        CURRENT_DB = dest_path
-        init_db()
-        add_recent_file(dest_path)
+    user_id = session.get('user_id')
+    dest_path = get_user_db_path(user_id)
+    if os.path.exists(dest_path):
+        try: os.remove(dest_path)
+        except Exception: pass
+    file.save(dest_path)
+    init_db(user_id)
+    if GCS_BUCKET_NAME and user_id:
+        upload_user_db_to_gcs(user_id)
+    ensure_local_assets(user_id)
+    add_recent_file(dest_path)
         
     return jsonify({"success": True})
 
@@ -1605,11 +1703,8 @@ def disenroll_profiles():
 @app.route('/users/avatar/<int:user_id>')
 def get_user_avatar(user_id):
     default_svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100" height="100" style="background:#1e293b;"><circle cx="12" cy="12" r="12" fill="#334155"/><circle cx="12" cy="8" r="4" fill="#94a3b8"/><path d="M12 14c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z" fill="#94a3b8"/></svg>"""
-    if not CURRENT_DB:
-        return Response(default_svg, mimetype='image/svg+xml')
-    conn = get_db()
+    conn = get_auth_db()
     user = conn.execute("SELECT profile_picture_blob FROM users WHERE id = ?", (user_id,)).fetchone()
-    conn.close()
     if user and user['profile_picture_blob']:
         return Response(user['profile_picture_blob'], mimetype='image/png')
     return Response(default_svg, mimetype='image/svg+xml')
@@ -1618,12 +1713,11 @@ def get_user_avatar(user_id):
 @app.route('/users/manage')
 @admin_required
 def manage_users():
-    conn = get_db()
+    conn = get_auth_db()
     # Admins appear first, then alphabetically
     users = conn.execute(
         "SELECT id, name, is_admin, password, permissions, biometrics_enabled FROM users ORDER BY is_admin DESC, name ASC"
     ).fetchall()
-    conn.close()
     users_annotated = []
     for u in users:
         d = dict(u)
@@ -1656,15 +1750,22 @@ def add_user():
     if file and file.filename:
         file_content = file.read()
 
-    conn = get_db()
+    conn = get_auth_db()
+    cur = conn.cursor()
     if file_content:
-        conn.execute("INSERT INTO users (name, is_admin, password, biometrics_enabled, profile_picture_blob) VALUES (?, ?, ?, ?, ?)",
+        cur.execute("INSERT INTO users (name, is_admin, password, biometrics_enabled, profile_picture_blob) VALUES (?, ?, ?, ?, ?)",
                      (name, is_admin, hashed_password, biometrics_enabled, sqlite3.Binary(file_content)))
     else:
-        conn.execute("INSERT INTO users (name, is_admin, password, biometrics_enabled) VALUES (?, ?, ?, ?)",
+        cur.execute("INSERT INTO users (name, is_admin, password, biometrics_enabled) VALUES (?, ?, ?, ?)",
                      (name, is_admin, hashed_password, biometrics_enabled))
+    new_user_id = cur.lastrowid
     conn.commit()
-    conn.close()
+    upload_auth_db_to_gcs()
+
+    # Initialize private workspace for the new user
+    init_db(new_user_id)
+    upload_user_db_to_gcs(new_user_id)
+
     flash("User created successfully.")
     return redirect(url_for('manage_users'))
 
@@ -1687,7 +1788,7 @@ def edit_user():
     if file and file.filename:
         file_content = file.read()
 
-    conn = get_db()
+    conn = get_auth_db()
     if raw_password:
         # Hash the new password before storing
         hashed_password = generate_password_hash(raw_password)
@@ -1714,7 +1815,7 @@ def edit_user():
                 (name, is_admin, biometrics_enabled, user_id)
             )
     conn.commit()
-    conn.close()
+    upload_auth_db_to_gcs()
     
     # Keep session in sync if the admin edited their own active profile
     if int(user_id) == session.get('user_id'):
@@ -1733,10 +1834,10 @@ def delete_user(user_id):
         flash("You cannot delete your own active profile!")
         return redirect(url_for('manage_users'))
 
-    conn = get_db()
+    conn = get_auth_db()
     conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
-    conn.close()
+    upload_auth_db_to_gcs()
     flash("User deleted successfully.")
     return redirect(url_for('manage_users'))
 
@@ -1754,29 +1855,25 @@ def save_permissions():
     PERM_KEYS = ['reports', 'all_entries', 'demands', 'clients', 'areas', 'analytics', 'settings', 'users']
     perms = {k: (request.form.get(f'perm_{k}') == '1') for k in PERM_KEYS}
 
-    conn = get_db()
+    conn = get_auth_db()
     conn.execute("UPDATE users SET permissions = ? WHERE id = ?",
                  (_pjson.dumps(perms), int(user_id)))
     conn.commit()
-    conn.close()
+    upload_auth_db_to_gcs()
     flash("Permissions updated successfully.")
     return redirect(url_for('manage_users'))
 
 def get_dashboard_data():
-    if not CURRENT_DB:
-        return {}
-    
-    uid = get_user_filter()
     conn = get_db()
     settings = get_settings(conn)
     fin = get_financial_sql_snippets(settings)
     
-    valid_cond = f"(payment_status IS NULL OR payment_status NOT IN ('CANCELLED', 'BAD DEBT', 'Cancelled', 'Bad Debt', 'cancelled', 'bad debt')) AND (ownership_status IS NULL OR ownership_status NOT IN ('Not Owned', 'NOT OWNED', 'not owned')) AND user_id = {uid}"
+    valid_cond = "(payment_status IS NULL OR payment_status NOT IN ('CANCELLED', 'BAD DEBT', 'Cancelled', 'Bad Debt', 'cancelled', 'bad debt')) AND (ownership_status IS NULL OR ownership_status NOT IN ('Not Owned', 'NOT OWNED', 'not owned'))"
     stats = {
         'revenue': conn.execute(f"SELECT SUM(total) FROM sales WHERE {valid_cond}").fetchone()[0] or 0,
-        'unpaid': conn.execute(f"SELECT SUM(total) FROM sales WHERE payment_status = 'NOT PAID' AND user_id = ? AND NOT (UPPER(IFNULL(ownership_status, '')) = 'NOT OWNED' OR UPPER(IFNULL(payment_status, '')) = 'CANCELLED')", (uid,)).fetchone()[0] or 0,
-        'clients': conn.execute("SELECT COUNT(*) FROM client_list WHERE delete_flag = 0 AND user_id = ?", (uid,)).fetchone()[0],
-        'count': conn.execute(f"SELECT COUNT(*) FROM sales WHERE payment_status = 'NOT PAID' AND user_id = ? AND NOT (UPPER(IFNULL(ownership_status, '')) = 'NOT OWNED' OR UPPER(IFNULL(payment_status, '')) = 'CANCELLED')", (uid,)).fetchone()[0]
+        'unpaid': conn.execute("SELECT SUM(total) FROM sales WHERE payment_status = 'NOT PAID' AND NOT (UPPER(IFNULL(ownership_status, '')) = 'NOT OWNED' OR UPPER(IFNULL(payment_status, '')) = 'CANCELLED')").fetchone()[0] or 0,
+        'clients': conn.execute("SELECT COUNT(*) FROM client_list WHERE delete_flag = 0").fetchone()[0],
+        'count': conn.execute("SELECT COUNT(*) FROM sales WHERE payment_status = 'NOT PAID' AND NOT (UPPER(IFNULL(ownership_status, '')) = 'NOT OWNED' OR UPPER(IFNULL(payment_status, '')) = 'CANCELLED')").fetchone()[0]
     }
     stats['profit'] = conn.execute(f"""
         SELECT SUM(profit) FROM (
@@ -1787,7 +1884,7 @@ def get_dashboard_data():
                        {fin['vat_expr']} as vat,
                        {fin['wht_expr']} as wht
                 FROM sales s
-                WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status').replace('user_id', 's.user_id')}
+                WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status')}
             )
         )
     """).fetchone()[0] or 0
@@ -1806,13 +1903,13 @@ def get_dashboard_data():
                    {fin['vat_expr']} as vat,
                    {fin['wht_expr']} as wht
             FROM sales s
-            WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status').replace('user_id', 's.user_id')}
+            WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status')}
         )
         GROUP BY m ORDER BY m DESC LIMIT 12
     """).fetchall()
-    areas = conn.execute(f"SELECT a.name as n, COUNT(s.id) as c, SUM(s.total) as rev FROM sales s JOIN area_list a ON s.area_id = a.id WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status').replace('user_id', 's.user_id')} GROUP BY n ORDER BY rev DESC LIMIT 10").fetchall()
-    status_dist = conn.execute("SELECT payment_status, COUNT(*) as c, SUM(total) as t FROM sales WHERE user_id = ? GROUP BY payment_status", (uid,)).fetchall()
-    top_clients = conn.execute(f"SELECT c.name as n, SUM(s.total) as rev FROM sales s JOIN client_list c ON s.client_id = c.id WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status').replace('user_id', 's.user_id')} GROUP BY n ORDER BY rev DESC LIMIT 5").fetchall()
+    areas = conn.execute(f"SELECT a.name as n, COUNT(s.id) as c, SUM(s.total) as rev FROM sales s JOIN area_list a ON s.area_id = a.id WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status')} GROUP BY n ORDER BY rev DESC LIMIT 10").fetchall()
+    status_dist = conn.execute("SELECT payment_status, COUNT(*) as c, SUM(total) as t FROM sales GROUP BY payment_status").fetchall()
+    top_clients = conn.execute(f"SELECT c.name as n, SUM(s.total) as rev FROM sales s JOIN client_list c ON s.client_id = c.id WHERE {valid_cond.replace('payment_status', 's.payment_status').replace('ownership_status', 's.ownership_status')} GROUP BY n ORDER BY rev DESC LIMIT 5").fetchall()
     contract_types = conn.execute(f"SELECT contract_type, COUNT(*) as c FROM sales WHERE contract_type IS NOT NULL AND contract_type != '' AND {valid_cond} GROUP BY contract_type").fetchall()
     gov_dist = conn.execute(f"SELECT is_gov, COUNT(*) as c FROM sales WHERE {valid_cond} GROUP BY is_gov").fetchall()
     companies = conn.execute(f"SELECT company_name, SUM(total) as rev FROM sales WHERE company_name IS NOT NULL AND {valid_cond} GROUP BY company_name ORDER BY rev DESC").fetchall()
@@ -1822,8 +1919,8 @@ def get_dashboard_data():
             IFNULL(SUM(IFNULL(total, 0) * {fin['vat_rate']} / {100.0 + fin['vat_rate']}), 0) as vat_owed,
             COUNT(*) as invoice_count
         FROM sales
-        WHERE ura_status = 'UNPAID' AND is_vat_rated = 1 AND user_id = ?
-    """, (uid,)).fetchone()
+        WHERE ura_status = 'UNPAID' AND is_vat_rated = 1
+    """).fetchone()
     # Generate Proactive Alert Items
     action_items = []
     
@@ -1847,9 +1944,7 @@ def get_dashboard_data():
                 'btn_class': 'btn-outline-danger'
             }
         })
-        
 
-        
     # 3. Missing Client TINs for active contracts
     missing_tins = conn.execute("""
         SELECT DISTINCT c.name
@@ -1994,7 +2089,7 @@ def get_dashboard_data():
             strftime('%Y-%m', completion_date) as m, 
             SUM(total) as r
         FROM sales
-        WHERE {valid_cond.replace('payment_status', 'payment_status').replace('ownership_status', 'ownership_status')} AND completion_date IS NOT NULL AND completion_date != ''
+        WHERE {valid_cond} AND completion_date IS NOT NULL AND completion_date != ''
         GROUP BY m
     """).fetchall()
     yoy_map = {row['m']: row['r'] for row in yoy_rows}
@@ -2010,8 +2105,6 @@ def get_dashboard_data():
     yoy_current_label = f"{datetime.date(int(current_months[0].split('-')[0]), int(current_months[0].split('-')[1]), 1).strftime('%b %y')} - {datetime.date(int(current_months[-1].split('-')[0]), int(current_months[-1].split('-')[1]), 1).strftime('%b %y')}"
     yoy_prior_label = f"{datetime.date(int(prior_months[0].split('-')[0]), int(prior_months[0].split('-')[1]), 1).strftime('%b %y')} - {datetime.date(int(prior_months[-1].split('-')[0]), int(prior_months[-1].split('-')[1]), 1).strftime('%b %y')}"
 
-    conn.close()
-    
     stats['ura_unpaid_vat'] = round(ura_liability_row['vat_owed']) if ura_liability_row else 0
     stats['ura_unpaid_count'] = ura_liability_row['invoice_count'] if ura_liability_row else 0
 
@@ -2047,21 +2140,19 @@ def get_dashboard_data():
 def dashboard():
     if not session.get('user_id'):
         return redirect(url_for('google_login_page'))
-    if not CURRENT_DB:
-        return redirect(url_for('google_login_page'))
     data = get_dashboard_data()
     return render_template('dashboard.html', active_page='dashboard', **data)
 
 @app.route('/api/dashboard_stats')
 def api_dashboard_stats():
-    if not CURRENT_DB:
-        return jsonify({'error': 'No database open'}), 400
+    if not session.get('user_id'):
+        return jsonify({'error': 'Unauthorized'}), 401
     return jsonify(get_dashboard_data())
 
 @app.route('/api/alerts')
 def api_alerts():
     """Returns action items for the notification drawer. Fetched on demand."""
-    if not CURRENT_DB:
+    if not session.get('user_id'):
         return jsonify({'alerts': [], 'count': 0})
     data = get_dashboard_data()
     alerts = data.get('action_items', [])
@@ -2086,8 +2177,20 @@ def add_sale():
     try:
         conn = get_db()
         cursor = conn.cursor()
+        
+        # Safely validate client_id & area_id against foreign keys (empty strings or missing records map to None)
+        raw_cid = f.get('client_id')
+        raw_aid = f.get('area_id')
+        client_id = int(raw_cid) if (raw_cid and str(raw_cid).strip().isdigit() and int(raw_cid) > 0) else None
+        area_id = int(raw_aid) if (raw_aid and str(raw_aid).strip().isdigit() and int(raw_aid) > 0) else None
+        
+        if client_id and not cursor.execute("SELECT 1 FROM client_list WHERE id = ?", (client_id,)).fetchone():
+            client_id = None
+        if area_id and not cursor.execute("SELECT 1 FROM area_list WHERE id = ?", (area_id,)).fetchone():
+            area_id = None
+
         cursor.execute('''INSERT INTO sales (entry_id, invoice_code, contract_no, po_no, client_id, area_id, completion_date, contract_details, company_name, contract_type, is_gov, is_vat_rated, payment_status, payment_date, ura_status, ownership_status, total, investment_amount, tax_invoice_date, tax_period) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-            (f.get('entry_id'), f.get('invoice'), f.get('contract_no'), f.get('po_no'), f.get('client_id'), f.get('area_id'), f.get('completion_date'), f.get('contract_details'), f.get('company_name'), f.get('contract_type'), int(f.get('is_gov') or 0), int(f.get('is_vat') or 0), f.get('payment_status'), f.get('payment_date'), f.get('ura_status'), f.get('ownership_status', 'Owned'), safe_float(f.get('amount')), None if (f.get('investment') is None or str(f.get('investment')).strip() == '') else safe_float(f.get('investment')), f.get('tax_invoice_date') or None, f.get('tax_period') if f.get('ura_status') in ['PAID', 'OFFSET'] else None))
+            (f.get('entry_id'), f.get('invoice'), f.get('contract_no'), f.get('po_no'), client_id, area_id, f.get('completion_date'), f.get('contract_details'), f.get('company_name'), f.get('contract_type'), int(f.get('is_gov') or 0), int(f.get('is_vat') or 0), f.get('payment_status'), f.get('payment_date'), f.get('ura_status'), f.get('ownership_status', 'Owned'), safe_float(f.get('amount')), None if (f.get('investment') is None or str(f.get('investment')).strip() == '') else safe_float(f.get('investment')), f.get('tax_invoice_date') or None, f.get('tax_period') if f.get('ura_status') in ['PAID', 'OFFSET'] else None))
         new_id = cursor.lastrowid
         conn.commit()
         last = conn.execute("SELECT id FROM sales ORDER BY id DESC LIMIT 1").fetchone()
@@ -3567,21 +3670,25 @@ def update_settings():
     profile_file = request.files.get('profile_picture')
     if profile_file and profile_file.filename and session.get('user_id'):
         profile_content = profile_file.read()
-        conn.execute("UPDATE users SET profile_picture_blob = ? WHERE id = ?", (sqlite3.Binary(profile_content), session.get('user_id')))
+        auth_conn = get_auth_db()
+        auth_conn.execute("UPDATE users SET profile_picture_blob = ? WHERE id = ?", (sqlite3.Binary(profile_content), session.get('user_id')))
+        auth_conn.commit()
+        upload_auth_db_to_gcs()
 
     # Handle branding image assets (logo, header, footer)
+    user_upload_dir = get_user_upload_dir()
     for key in ['logo', 'header', 'footer']:
         file = request.files.get(key)
         if file and file.filename:
             ext = os.path.splitext(file.filename)[1].lower()
             fname = f"current_{key}{ext}"
-            full_path = os.path.join(UPLOAD_FOLDER, fname)
+            full_path = os.path.join(user_upload_dir, fname)
             
             file_content = file.read()
             file.seek(0)
             
             for ex in ['.png', '.jpg', '.jpeg', '.gif', '.icns', '.ico']:
-                old_file = os.path.join(UPLOAD_FOLDER, f"current_{key}{ex}")
+                old_file = os.path.join(user_upload_dir, f"current_{key}{ex}")
                 if os.path.exists(old_file):
                     try: os.remove(old_file)
                     except: pass
@@ -3589,7 +3696,8 @@ def update_settings():
             file.save(full_path)
             conn.execute(f"UPDATE company_settings SET {key}_path = ?, {key}_blob = ? WHERE id=1", (fname, sqlite3.Binary(file_content)))
 
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
     flash("Settings updated successfully.")
     return redirect(url_for('settings'))
 
@@ -3628,8 +3736,21 @@ def update_sale():
     f = request.form
     try:
         conn = get_db()
-        conn.execute('''UPDATE sales SET invoice_code=?, contract_no=?, po_no=?, client_id=?, area_id=?, completion_date=?, contract_details=?, company_name=?, contract_type=?, is_gov=?, is_vat_rated=?, payment_status=?, payment_date=?, ura_status=?, ownership_status=?, total=?, investment_amount=?, tax_invoice_date=?, tax_period=? WHERE id = ?''',
-            (f.get('invoice'), f.get('contract_no'), f.get('po_no'), f.get('client_id'), f.get('area_id'), f.get('completion_date'), f.get('contract_details'), f.get('company_name'), f.get('contract_type'), int(f.get('is_gov') or 0), int(f.get('is_vat') or 0), f.get('payment_status'), f.get('payment_date'), f.get('ura_status'), f.get('ownership_status', 'Owned'), safe_float(f.get('amount')), None if (f.get('investment') is None or str(f.get('investment')).strip() == '') else safe_float(f.get('investment')), f.get('tax_invoice_date') or None, f.get('tax_period') if f.get('ura_status') in ['PAID', 'OFFSET'] else None, f.get('id')))
+        cursor = conn.cursor()
+        
+        # Safely validate client_id & area_id against foreign keys
+        raw_cid = f.get('client_id')
+        raw_aid = f.get('area_id')
+        client_id = int(raw_cid) if (raw_cid and str(raw_cid).strip().isdigit() and int(raw_cid) > 0) else None
+        area_id = int(raw_aid) if (raw_aid and str(raw_aid).strip().isdigit() and int(raw_aid) > 0) else None
+        
+        if client_id and not cursor.execute("SELECT 1 FROM client_list WHERE id = ?", (client_id,)).fetchone():
+            client_id = None
+        if area_id and not cursor.execute("SELECT 1 FROM area_list WHERE id = ?", (area_id,)).fetchone():
+            area_id = None
+
+        cursor.execute('''UPDATE sales SET invoice_code=?, contract_no=?, po_no=?, client_id=?, area_id=?, completion_date=?, contract_details=?, company_name=?, contract_type=?, is_gov=?, is_vat_rated=?, payment_status=?, payment_date=?, ura_status=?, ownership_status=?, total=?, investment_amount=?, tax_invoice_date=?, tax_period=? WHERE id = ?''',
+            (f.get('invoice'), f.get('contract_no'), f.get('po_no'), client_id, area_id, f.get('completion_date'), f.get('contract_details'), f.get('company_name'), f.get('contract_type'), int(f.get('is_gov') or 0), int(f.get('is_vat') or 0), f.get('payment_status'), f.get('payment_date'), f.get('ura_status'), f.get('ownership_status', 'Owned'), safe_float(f.get('amount')), None if (f.get('investment') is None or str(f.get('investment')).strip() == '') else safe_float(f.get('investment')), f.get('tax_invoice_date') or None, f.get('tax_period') if f.get('ura_status') in ['PAID', 'OFFSET'] else None, f.get('id')))
         conn.commit(); conn.close()
         if f.get('ajax') == '1':
             return jsonify({"success": True})
@@ -3774,125 +3895,149 @@ def live_stats():
     conn.close()
     return jsonify(stats)
 
-def init_db():
-    db_path = get_db_path()
-    if os.path.exists(db_path) and os.path.getsize(db_path) > 0:
+def init_auth_db():
+    """Initialize central authentication database storing users, roles, and secret key."""
+    if os.path.exists(CENTRAL_AUTH_DB_PATH) and os.path.getsize(CENTRAL_AUTH_DB_PATH) > 0:
         import threading
-        threading.Thread(target=backup_database, args=(db_path,), daemon=True).start()
+        threading.Thread(target=backup_database, args=(CENTRAL_AUTH_DB_PATH,), daemon=True).start()
 
-    conn = get_db(); cursor = conn.cursor()
+    conn = get_auth_db()
+    cursor = conn.cursor()
 
-    # Set WAL mode and performance PRAGMAs once at startup (these settings persist in the DB file)
     try:
         cursor.execute("PRAGMA journal_mode = WAL")
         cursor.execute("PRAGMA synchronous = NORMAL")
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
-        cursor.execute("PRAGMA cache_size = -8000")   # 8MB page cache
-        cursor.execute("PRAGMA temp_store = MEMORY")  # temp tables in RAM
     except Exception:
         pass
 
-    # Check if this is a brand new database (i.e. system_info or users table doesn't exist yet, or is empty)
-    is_new_db = False
+    cursor.execute('CREATE TABLE IF NOT EXISTS system_info (meta_field TEXT UNIQUE, meta_value TEXT)')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        username TEXT,
+        email TEXT,
+        google_email TEXT,
+        phone TEXT,
+        profile_picture_blob BLOB,
+        is_admin INTEGER DEFAULT 0,
+        password TEXT,
+        permissions TEXT DEFAULT '{}',
+        biometrics_enabled INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # Upgrade users table columns if missing
+    cursor.execute("PRAGMA table_info(users)")
+    u_cols = [c[1] for c in cursor.fetchall()]
+    for col in ['email', 'google_email', 'username', 'phone', 'permissions', 'password', 'profile_picture_blob']:
+        if col not in u_cols:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT")
+    if 'biometrics_enabled' not in u_cols:
+        cursor.execute("ALTER TABLE users ADD COLUMN biometrics_enabled INTEGER DEFAULT 0")
+
+    # Migrate any existing users from legacy databases if auth.db has no users
+    user_count = cursor.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if user_count == 0:
+        legacy_candidates = [
+            os.path.join(APP_DATA_DIR, "company_contracts.db"),
+            os.path.abspath("company_contracts.db")
+        ]
+        for leg_db in legacy_candidates:
+            if os.path.exists(leg_db):
+                try:
+                    leg_conn = sqlite3.connect(leg_db)
+                    leg_conn.row_factory = sqlite3.Row
+                    leg_users = leg_conn.execute("SELECT * FROM users").fetchall()
+                    for u in leg_users:
+                        u_dict = dict(u)
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO users 
+                            (id, name, username, email, google_email, phone, profile_picture_blob, is_admin, password, permissions, biometrics_enabled, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            u_dict.get('id'), u_dict.get('name'), u_dict.get('username'),
+                            u_dict.get('email'), u_dict.get('google_email'), u_dict.get('phone'),
+                            u_dict.get('profile_picture_blob'), u_dict.get('is_admin', 0),
+                            u_dict.get('password'), u_dict.get('permissions', '{}'),
+                            u_dict.get('biometrics_enabled', 0), u_dict.get('created_at')
+                        ))
+                    leg_conn.close()
+                    break
+                except Exception as me:
+                    print(f"Legacy user migration notice: {me}")
+
+    # Re-check user count after migration check
+    user_count = cursor.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if user_count == 0:
+        hashed_admin = generate_password_hash('admin')
+        cursor.execute("INSERT INTO users (name, username, is_admin, password) VALUES ('Admin', 'admin', 1, ?)", (hashed_admin,))
+
+    # Migrate plaintext passwords if any
+    plain_users = cursor.execute("SELECT id, password FROM users WHERE password IS NOT NULL AND password != ''").fetchall()
+    for pu in plain_users:
+        pw = pu[1]
+        if not (pw.startswith('scrypt:') or pw.startswith('pbkdf2:') or pw.startswith('$2')):
+            new_hash = generate_password_hash(pw)
+            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_hash, pu[0]))
+
+    # Secret key initialization
+    import secrets as _sec
+    secret_row = cursor.execute("SELECT meta_value FROM system_info WHERE meta_field = 'secret_key'").fetchone()
+    if not secret_row:
+        new_secret = _sec.token_hex(32)
+        cursor.execute("INSERT OR IGNORE INTO system_info (meta_field, meta_value) VALUES ('secret_key', ?)", (new_secret,))
+        app.secret_key = new_secret
+    else:
+        app.secret_key = secret_row[0]
+
+    conn.commit()
+    conn.close()
+
+
+def init_db(user_id=None):
+    """Initialize a private SQLite workspace for a user."""
+    if user_id is None and has_app_context():
+        user_id = session.get('user_id')
+    
+    db_path = get_user_db_path(user_id)
+    if os.path.exists(db_path) and os.path.getsize(db_path) > 0:
+        import threading
+        threading.Thread(target=backup_database, args=(db_path,), daemon=True).start()
+
+    conn = get_db(user_id)
+    cursor = conn.cursor()
+
     try:
-        res_tables = cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='system_info'").fetchone()
-        if not res_tables:
-            is_new_db = True
-        else:
-            row_count = cursor.execute("SELECT COUNT(*) FROM system_info").fetchone()[0]
-            if row_count == 0:
-                is_new_db = True
+        cursor.execute("PRAGMA journal_mode = WAL")
+        cursor.execute("PRAGMA synchronous = NORMAL")
+        cursor.execute("PRAGMA wal_autocheckpoint = 1000")
+        cursor.execute("PRAGMA cache_size = -8000")
+        cursor.execute("PRAGMA temp_store = MEMORY")
     except Exception:
-        is_new_db = True
+        pass
 
     cursor.execute('CREATE TABLE IF NOT EXISTS system_info (meta_field TEXT UNIQUE, meta_value TEXT)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS client_list (id INTEGER PRIMARY KEY, code TEXT, name TEXT, contact TEXT, tin TEXT, address TEXT, delete_flag INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS area_list (id INTEGER PRIMARY KEY, name TEXT, delete_flag INT DEFAULT 0)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY, entry_id TEXT, invoice_code TEXT, contract_no TEXT, po_no TEXT, client_id INT, area_id INT, completion_date TEXT, contract_details TEXT, company_name TEXT, contract_type TEXT, is_gov INT, is_vat_rated INT, payment_status TEXT, payment_date TEXT, ura_status TEXT, ownership_status TEXT, total REAL, investment_amount REAL, tax_invoice_date TEXT, tax_period TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (client_id) REFERENCES client_list(id) ON DELETE RESTRICT, FOREIGN KEY (area_id) REFERENCES area_list(id) ON DELETE RESTRICT)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS company_settings (id INTEGER PRIMARY KEY, name TEXT, address TEXT, contact TEXT, email TEXT, bank_name TEXT, bank_account_name TEXT, bank_account_number TEXT, bank_branch TEXT, logo_path TEXT, header_path TEXT, footer_path TEXT, icon_path TEXT, logo_blob BLOB, header_blob BLOB, footer_blob BLOB, icon_blob BLOB, tin_number TEXT, footer TEXT)')
-    cursor.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, username TEXT, profile_picture_blob BLOB, is_admin INTEGER DEFAULT 0, password TEXT, biometrics_enabled INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)')
-    
+    cursor.execute('CREATE TABLE IF NOT EXISTS client_list (id INTEGER PRIMARY KEY, code TEXT, name TEXT, contact TEXT, tin TEXT, address TEXT, delete_flag INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, user_id INT)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS area_list (id INTEGER PRIMARY KEY, name TEXT, delete_flag INT DEFAULT 0, user_id INT)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY, entry_id TEXT, invoice_code TEXT, contract_no TEXT, po_no TEXT, client_id INT, area_id INT, completion_date TEXT, contract_details TEXT, company_name TEXT, contract_type TEXT, is_gov INT, is_vat_rated INT, payment_status TEXT, payment_date TEXT, ura_status TEXT, ownership_status TEXT, total REAL, investment_amount REAL, tax_invoice_date TEXT, tax_period TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, user_id INT, FOREIGN KEY (client_id) REFERENCES client_list(id) ON DELETE RESTRICT, FOREIGN KEY (area_id) REFERENCES area_list(id) ON DELETE RESTRICT)')
+    cursor.execute('CREATE TABLE IF NOT EXISTS company_settings (id INTEGER PRIMARY KEY, name TEXT, address TEXT, contact TEXT, email TEXT, bank_name TEXT, bank_account_name TEXT, bank_account_number TEXT, bank_branch TEXT, logo_path TEXT, header_path TEXT, footer_path TEXT, icon_path TEXT, logo_blob BLOB, header_blob BLOB, footer_blob BLOB, icon_blob BLOB, tin_number TEXT, footer TEXT, vat_rate REAL DEFAULT 18.0, wht_rate REAL DEFAULT 6.0, profit_margin REAL DEFAULT 50.0, retention_rate REAL DEFAULT 5.0, performance_bond_rate REAL DEFAULT 10.0, discount_rate REAL DEFAULT 0.0, currency TEXT DEFAULT \'UGX\', vwht_rate REAL DEFAULT 6.0, reg_number TEXT, website TEXT)')
+
     # Check for missing columns (upgrade support)
     cursor.execute("PRAGMA table_info(company_settings)")
     cols = [c[1] for c in cursor.fetchall()]
     for b_col in ['logo_blob', 'header_blob', 'footer_blob', 'icon_blob']:
         if b_col not in cols:
             cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {b_col} BLOB")
-    if 'tin_number' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN tin_number TEXT")
-    if 'footer' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN footer TEXT")
-    if 'vat_rate' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN vat_rate REAL DEFAULT 18.0")
-    if 'wht_rate' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN wht_rate REAL DEFAULT 6.0")
-    if 'profit_margin' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN profit_margin REAL DEFAULT 50.0")
-    if 'retention_rate' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN retention_rate REAL DEFAULT 5.0")
-    if 'performance_bond_rate' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN performance_bond_rate REAL DEFAULT 10.0")
-    if 'discount_rate' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN discount_rate REAL DEFAULT 0.0")
+    for s_col in ['tin_number', 'footer', 'reg_number', 'website']:
+        if s_col not in cols:
+            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {s_col} TEXT")
+    for r_col, r_val in [('vat_rate', 18.0), ('wht_rate', 6.0), ('profit_margin', 50.0), ('retention_rate', 5.0), ('performance_bond_rate', 10.0), ('discount_rate', 0.0), ('vwht_rate', 6.0)]:
+        if r_col not in cols:
+            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {r_col} REAL DEFAULT {r_val}")
     if 'currency' not in cols:
         cursor.execute("ALTER TABLE company_settings ADD COLUMN currency TEXT DEFAULT 'UGX'")
-    if 'vwht_rate' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN vwht_rate REAL DEFAULT 6.0")
-    if 'reg_number' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN reg_number TEXT")
-    if 'website' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN website TEXT")
-            
-    # Check users table columns (upgrade support)
-    cursor.execute("PRAGMA table_info(users)")
-    u_cols = [c[1] for c in cursor.fetchall()]
-    if 'password' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN password TEXT")
-    if 'permissions' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'")
-    if 'biometrics_enabled' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN biometrics_enabled INTEGER DEFAULT 0")
-    if 'email' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
-    if 'google_email' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN google_email TEXT")
-    if 'username' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN username TEXT")
-    if 'phone' not in u_cols:
-        cursor.execute("ALTER TABLE users ADD COLUMN phone TEXT")
 
-    # Add user_id (owner) columns to data tables for per-user isolation
-    cursor.execute("PRAGMA table_info(client_list)")
-    cl_cols = [c[1] for c in cursor.fetchall()]
-    if 'user_id' not in cl_cols:
-        cursor.execute("ALTER TABLE client_list ADD COLUMN user_id INTEGER")
-
-    cursor.execute("PRAGMA table_info(area_list)")
-    al_cols = [c[1] for c in cursor.fetchall()]
-    if 'user_id' not in al_cols:
-        cursor.execute("ALTER TABLE area_list ADD COLUMN user_id INTEGER")
-
-    cursor.execute("PRAGMA table_info(sales)")
-    sl_cols = [c[1] for c in cursor.fetchall()]
-    if 'user_id' not in sl_cols:
-        cursor.execute("ALTER TABLE sales ADD COLUMN user_id INTEGER")
-
-    # Assign all existing data (with no owner) to the first admin user
-    first_admin = cursor.execute("SELECT id FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1").fetchone()
-    if first_admin:
-        admin_id = first_admin[0]
-        cursor.execute("UPDATE client_list SET user_id = ? WHERE user_id IS NULL", (admin_id,))
-        cursor.execute("UPDATE area_list SET user_id = ? WHERE user_id IS NULL", (admin_id,))
-        cursor.execute("UPDATE sales SET user_id = ? WHERE user_id IS NULL", (admin_id,))
- 
-    # Check sales table columns (upgrade support)
-    cursor.execute("PRAGMA table_info(sales)")
-    s_cols = [c[1] for c in cursor.fetchall()]
-    if 'tax_invoice_date' not in s_cols:
-        cursor.execute("ALTER TABLE sales ADD COLUMN tax_invoice_date TEXT")
-    if 'tax_period' not in s_cols:
-        cursor.execute("ALTER TABLE sales ADD COLUMN tax_period TEXT")
-    
     # Performance Indexes
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(client_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_sales_area ON sales(area_id)')
@@ -3907,54 +4052,11 @@ def init_db():
         cursor.execute("INSERT INTO company_settings (id, name) VALUES (1, '')")
     if not cursor.execute("SELECT * FROM system_info WHERE meta_field = 'name'").fetchone():
         cursor.execute("INSERT INTO system_info (meta_field, meta_value) VALUES ('name', 'ContractPro')")
-    
-    # Initialize dynamic user profile enrollment setting
-    if not cursor.execute("SELECT * FROM system_info WHERE meta_field = 'profiles_enrolled'").fetchone():
-        default_enrolled = '0' if is_new_db else '1'
-        cursor.execute("INSERT INTO system_info (meta_field, meta_value) VALUES ('profiles_enrolled', ?)", (default_enrolled,))
-    
-    # Initialize or retrieve dynamic Flask app secret key (persisted across restarts)
-    import secrets as _sec
-    secret_row = cursor.execute("SELECT meta_value FROM system_info WHERE meta_field = 'secret_key'").fetchone()
-    if not secret_row:
-        new_secret = _sec.token_hex(32)
-        cursor.execute("INSERT OR IGNORE INTO system_info (meta_field, meta_value) VALUES ('secret_key', ?)", (new_secret,))
-        app.secret_key = new_secret
-    else:
-        app.secret_key = secret_row[0]
 
-    # Ensure at least one admin exists
-    if not cursor.execute("SELECT * FROM users WHERE is_admin = 1").fetchone():
-        hashed_admin = generate_password_hash('admin')
-        cursor.execute("INSERT INTO users (name, is_admin, password) VALUES ('Admin', 1, ?)", (hashed_admin,))
-
-    # --- Migrate any legacy plaintext passwords to secure hashes ---
-    plain_users = cursor.execute(
-        "SELECT id, password FROM users WHERE password IS NOT NULL AND password != ''"
-    ).fetchall()
-    for pu in plain_users:
-        pw = pu[1]
-        # Werkzeug hashes start with 'scrypt:' or 'pbkdf2:'; bcrypt with '$2'
-        if not (pw.startswith('scrypt:') or pw.startswith('pbkdf2:') or pw.startswith('$2')):
-            new_hash = generate_password_hash(pw)
-            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_hash, pu[0]))
-            print(f"[Security] Migrated plaintext password for user id={pu[0]} to secure hash.")
-
-    # --- Upgrade legacy blank investments (which were saved as 0.0) to NULL ---
+    # Upgrade legacy blank investments (which were saved as 0.0) to NULL
     cursor.execute("UPDATE sales SET investment_amount = NULL WHERE investment_amount = 0.0")
 
     conn.commit()
-
-    # --- Database Integrity Check (log only, don't block) ---
-    try:
-        result = cursor.execute("PRAGMA integrity_check").fetchone()
-        if result and result[0] != 'ok':
-            print(f"[DB WARNING] integrity_check reported: {result[0]}")
-        else:
-            print(f"[DB] integrity_check passed.")
-    except Exception as ie:
-        print(f"[DB] integrity_check error: {ie}")
-
     conn.close()
 
 GLOBAL_PORT = 5000
@@ -4077,21 +4179,17 @@ class JS_API:
             
             data = []
             for r in rows:
-                c = db.execute("SELECT name FROM client_list WHERE id=?", (r['client_id'],)).fetchone()
-                a = db.execute("SELECT name FROM area_list WHERE id=?", (r['area_id'],)).fetchone()
                 data.append({
                     'Entry ID': r['entry_id'],
-                    'Invoice': r['invoice_code'],
-                    'Contract': r['contract_no'],
-                    'PO': r['po_no'],
-                    'Client': c['name'] if c else 'N/A',
-                    'Area': a['name'] if a else 'N/A',
-                    'Date': r['completion_date'],
-                    'Details': r['contract_details'],
-                    'Company': r['company_name'],
-                    'Type': r['contract_type'],
-                    'Gov': "Yes" if r['is_gov'] else "No",
-                    'VAT Rated': "Yes" if r['is_vat_rated'] else "No",
+                    'Invoice Code': r['invoice_code'],
+                    'Contract No': r['contract_no'],
+                    'PO No': r['po_no'],
+                    'Completion Date': r['completion_date'],
+                    'Contract Details': r['contract_details'],
+                    'Company Name': r['company_name'],
+                    'Contract Type': r['contract_type'],
+                    'Government': 'Yes' if r['is_gov'] else 'No',
+                    'VAT Rated': 'Yes' if r['is_vat_rated'] else 'No',
                     'Status': r['payment_status'],
                     'Payment Date': r['payment_date'],
                     'URA Status': r['ura_status'],
@@ -4130,29 +4228,41 @@ def export_sales():
         query += " AND payment_status = 'PAID'"
     elif status == 'NOT PAID':
         query += " AND (payment_status IS NULL OR payment_status != 'PAID')"
-    
+        
     db = get_db()
     rows = db.execute(query, params).fetchall()
     
-    # Generate CSV
-    import io, csv
+    import csv, io
     output = io.StringIO()
     writer = csv.writer(output)
+    
+    # Headers
     writer.writerow([
-        'Entry ID', 'Invoice', 'Contract', 'PO', 'Client', 'Area', 'Date', 'Details', 
-        'Company', 'Type', 'Gov', 'VAT Rated', 'Status', 'Payment Date', 
-        'URA Status', 'Ownership', 'Total Amount', 'Investment', 'Created At'
+        'Entry ID', 'Invoice Code', 'Contract No', 'PO No', 
+        'Completion Date', 'Contract Details', 'Company Name', 
+        'Contract Type', 'Government', 'VAT Rated', 'Status', 
+        'Payment Date', 'URA Status', 'Ownership', 'Total Amount', 
+        'Investment', 'Created At'
     ])
     
     for r in rows:
-        client_name = db.execute("SELECT name FROM client_list WHERE id=?", (r['client_id'],)).fetchone()['name']
-        area_name = db.execute("SELECT name FROM area_list WHERE id=?", (r['area_id'],)).fetchone()['name']
         writer.writerow([
-            r['entry_id'], r['invoice_code'], r['contract_no'], r['po_no'],
-            client_name, area_name, r['completion_date'], r['contract_details'],
-            r['company_name'], r['contract_type'], "Yes" if r['is_gov'] else "No",
-            "Yes" if r['is_vat_rated'] else "No", r['payment_status'], r['payment_date'],
-            r['ura_status'], r['ownership_status'], r['total'], r['investment_amount'],
+            r['entry_id'],
+            r['invoice_code'],
+            r['contract_no'],
+            r['po_no'],
+            r['completion_date'],
+            r['contract_details'],
+            r['company_name'],
+            r['contract_type'],
+            'Yes' if r['is_gov'] else 'No',
+            'Yes' if r['is_vat_rated'] else 'No',
+            r['payment_status'],
+            r['payment_date'],
+            r['ura_status'],
+            r['ownership_status'],
+            r['total'],
+            r['investment_amount'],
             r['created_at']
         ])
     
@@ -4164,10 +4274,10 @@ def export_sales():
 
 # --- INITIALIZE DATABASE AND ASSETS FOR WEB/CLOUD PRODUCTION ---
 if GCS_BUCKET_NAME:
-    download_db_from_gcs()
+    download_auth_db_from_gcs()
+init_auth_db()
 init_db()
-if GCS_BUCKET_NAME:
-    ensure_local_assets()
+ensure_local_assets()
 
 if __name__ == "__main__":
     # Redirect stdout/stderr to a log in the app data folder so we can inspect runtime crashes
