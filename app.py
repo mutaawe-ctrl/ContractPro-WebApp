@@ -195,12 +195,15 @@ def download_user_db_from_gcs(user_id):
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
             blob.download_to_filename(db_path)
             print(f"User {user_id} database downloaded successfully.")
+            init_db(user_id)
+            ensure_local_assets(user_id)
         else:
             print(f"User {user_id} database blob not in GCS. Initializing fresh workspace.")
             init_db(user_id)
             upload_user_db_to_gcs(user_id)
     except Exception as e:
         print(f"Failed to download user {user_id} database from GCS: {e}")
+        init_db(user_id)
 
 def upload_user_db_to_gcs(user_id=None):
     """Upload a user's private database to GCS."""
@@ -275,6 +278,12 @@ def get_auth_db():
         except sqlite3.ProgrammingError:
             g._auth_db_conn = None
 
+    if not os.path.exists(CENTRAL_AUTH_DB_PATH) or os.path.getsize(CENTRAL_AUTH_DB_PATH) == 0:
+        if GCS_BUCKET_NAME:
+            download_auth_db_from_gcs()
+        else:
+            init_auth_db()
+
     os.makedirs(os.path.dirname(CENTRAL_AUTH_DB_PATH), exist_ok=True)
     conn = sqlite3.connect(CENTRAL_AUTH_DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
@@ -301,6 +310,13 @@ def get_db(user_id=None):
             return g._shared_db_conn
         except sqlite3.ProgrammingError:
             g._shared_db_conn = None
+
+    # If the local database file doesn't exist or is empty, download from GCS or initialize
+    if not os.path.exists(db_path) or os.path.getsize(db_path) == 0:
+        if GCS_BUCKET_NAME and user_id:
+            download_user_db_from_gcs(user_id)
+        else:
+            init_db(user_id)
             
     conn = sqlite3.connect(db_path, timeout=30)
     conn.row_factory = sqlite3.Row
@@ -1242,6 +1258,14 @@ def check_db():
 
     # Validate that the logged-in user still exists in the auth database
     if session.get('user_id'):
+        uid = session['user_id']
+        u_db = get_user_db_path(uid)
+        if not os.path.exists(u_db) or os.path.getsize(u_db) == 0:
+            if GCS_BUCKET_NAME:
+                download_user_db_from_gcs(uid)
+            else:
+                init_db(uid)
+
         if session.get('user_validated_db') != db_path:
             conn = get_auth_db()
             user_exists = conn.execute("SELECT id FROM users WHERE id = ?", (session['user_id'],)).fetchone()
@@ -4005,7 +4029,9 @@ def init_db(user_id=None):
         import threading
         threading.Thread(target=backup_database, args=(db_path,), daemon=True).start()
 
-    conn = get_db(user_id)
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     try:
@@ -4023,20 +4049,77 @@ def init_db(user_id=None):
     cursor.execute('CREATE TABLE IF NOT EXISTS sales (id INTEGER PRIMARY KEY, entry_id TEXT, invoice_code TEXT, contract_no TEXT, po_no TEXT, client_id INT, area_id INT, completion_date TEXT, contract_details TEXT, company_name TEXT, contract_type TEXT, is_gov INT, is_vat_rated INT, payment_status TEXT, payment_date TEXT, ura_status TEXT, ownership_status TEXT, total REAL, investment_amount REAL, tax_invoice_date TEXT, tax_period TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, user_id INT, FOREIGN KEY (client_id) REFERENCES client_list(id) ON DELETE RESTRICT, FOREIGN KEY (area_id) REFERENCES area_list(id) ON DELETE RESTRICT)')
     cursor.execute('CREATE TABLE IF NOT EXISTS company_settings (id INTEGER PRIMARY KEY, name TEXT, address TEXT, contact TEXT, email TEXT, bank_name TEXT, bank_account_name TEXT, bank_account_number TEXT, bank_branch TEXT, logo_path TEXT, header_path TEXT, footer_path TEXT, icon_path TEXT, logo_blob BLOB, header_blob BLOB, footer_blob BLOB, icon_blob BLOB, tin_number TEXT, footer TEXT, vat_rate REAL DEFAULT 18.0, wht_rate REAL DEFAULT 6.0, profit_margin REAL DEFAULT 50.0, retention_rate REAL DEFAULT 5.0, performance_bond_rate REAL DEFAULT 10.0, discount_rate REAL DEFAULT 0.0, currency TEXT DEFAULT \'UGX\', vwht_rate REAL DEFAULT 6.0, reg_number TEXT, website TEXT)')
 
-    # Check for missing columns (upgrade support)
+    # Check for missing columns in sales (upgrade support for legacy databases)
+    cursor.execute("PRAGMA table_info(sales)")
+    sales_cols = [c[1] for c in cursor.fetchall()]
+    for col_name, col_type in [
+        ('entry_id', 'TEXT'), ('invoice_code', 'TEXT'), ('contract_no', 'TEXT'),
+        ('po_no', 'TEXT'), ('client_id', 'INTEGER'), ('area_id', 'INTEGER'),
+        ('completion_date', 'TEXT'), ('contract_details', 'TEXT'), ('company_name', 'TEXT'),
+        ('contract_type', 'TEXT'), ('is_gov', 'INTEGER DEFAULT 0'), ('is_vat_rated', 'INTEGER DEFAULT 0'),
+        ('payment_status', 'TEXT'), ('payment_date', 'TEXT'), ('ura_status', 'TEXT'),
+        ('ownership_status', "TEXT DEFAULT 'Owned'"), ('total', 'REAL DEFAULT 0.0'),
+        ('investment_amount', 'REAL'), ('tax_invoice_date', 'TEXT'), ('tax_period', 'TEXT'),
+        ('user_id', 'INTEGER'), ('created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP')
+    ]:
+        if col_name not in sales_cols:
+            try:
+                cursor.execute(f"ALTER TABLE sales ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
+
+    # Check for missing columns in client_list
+    cursor.execute("PRAGMA table_info(client_list)")
+    cli_cols = [c[1] for c in cursor.fetchall()]
+    for col_name, col_type in [
+        ('code', 'TEXT'), ('name', 'TEXT'), ('contact', 'TEXT'),
+        ('tin', 'TEXT'), ('address', 'TEXT'), ('delete_flag', 'INTEGER DEFAULT 0'),
+        ('created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP'), ('user_id', 'INTEGER')
+    ]:
+        if col_name not in cli_cols:
+            try:
+                cursor.execute(f"ALTER TABLE client_list ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
+
+    # Check for missing columns in area_list
+    cursor.execute("PRAGMA table_info(area_list)")
+    area_cols = [c[1] for c in cursor.fetchall()]
+    for col_name, col_type in [
+        ('name', 'TEXT'), ('delete_flag', 'INTEGER DEFAULT 0'), ('user_id', 'INTEGER')
+    ]:
+        if col_name not in area_cols:
+            try:
+                cursor.execute(f"ALTER TABLE area_list ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
+
+    # Check for missing columns in company_settings
     cursor.execute("PRAGMA table_info(company_settings)")
     cols = [c[1] for c in cursor.fetchall()]
     for b_col in ['logo_blob', 'header_blob', 'footer_blob', 'icon_blob']:
         if b_col not in cols:
-            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {b_col} BLOB")
+            try:
+                cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {b_col} BLOB")
+            except Exception:
+                pass
     for s_col in ['tin_number', 'footer', 'reg_number', 'website']:
         if s_col not in cols:
-            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {s_col} TEXT")
+            try:
+                cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {s_col} TEXT")
+            except Exception:
+                pass
     for r_col, r_val in [('vat_rate', 18.0), ('wht_rate', 6.0), ('profit_margin', 50.0), ('retention_rate', 5.0), ('performance_bond_rate', 10.0), ('discount_rate', 0.0), ('vwht_rate', 6.0)]:
         if r_col not in cols:
-            cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {r_col} REAL DEFAULT {r_val}")
+            try:
+                cursor.execute(f"ALTER TABLE company_settings ADD COLUMN {r_col} REAL DEFAULT {r_val}")
+            except Exception:
+                pass
     if 'currency' not in cols:
-        cursor.execute("ALTER TABLE company_settings ADD COLUMN currency TEXT DEFAULT 'UGX'")
+        try:
+            cursor.execute("ALTER TABLE company_settings ADD COLUMN currency TEXT DEFAULT 'UGX'")
+        except Exception:
+            pass
 
     # Performance Indexes
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_sales_client ON sales(client_id)')
@@ -4054,7 +4137,10 @@ def init_db(user_id=None):
         cursor.execute("INSERT INTO system_info (meta_field, meta_value) VALUES ('name', 'ContractPro')")
 
     # Upgrade legacy blank investments (which were saved as 0.0) to NULL
-    cursor.execute("UPDATE sales SET investment_amount = NULL WHERE investment_amount = 0.0")
+    try:
+        cursor.execute("UPDATE sales SET investment_amount = NULL WHERE investment_amount = 0.0")
+    except Exception:
+        pass
 
     conn.commit()
     conn.close()
