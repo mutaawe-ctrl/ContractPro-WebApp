@@ -361,9 +361,12 @@ if not os.path.exists(UPLOAD_FOLDER):
 # Silence server logs
 logging.getLogger('werkzeug').disabled = True
 
-app = Flask(__name__, 
-            template_folder=get_resource_path("templates"),
-            static_folder=get_resource_path("static"))
+import sys as _sys
+_is_cloud = not hasattr(_sys, '_MEIPASS')
+app = Flask(__name__,
+            template_folder='templates' if _is_cloud else get_resource_path("templates"),
+            static_folder='static' if _is_cloud else get_resource_path("static"))
+
 # Support Cloud Run / Reverse Proxies (HTTPS scheme preservation)
 from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
