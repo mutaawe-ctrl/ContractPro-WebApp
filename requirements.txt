@@ -1,0 +1,11 @@
+flask
+fpdf
+pywebview
+pandas
+openpyxl
+google-cloud-storage
+authlib
+requests
+Flask>=3.0
+gunicorn>=22.0
+# add any other packages you use, one per line

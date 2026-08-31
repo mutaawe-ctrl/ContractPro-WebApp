@@ -1,0 +1,33 @@
+steps:
+  # 1️⃣ Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$ContractPro-WebApp/contractpro-repo/contractpro:$SHORT_SHA'
+      - '.'
+
+  # 2️⃣ Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$ContractPro-WebApp/contractpro-repo/contractpro:$SHORT_SHA'
+
+  # 3️⃣ Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'contractpro-service'            # you can rename the service if you wish
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$ContractPro-WebApp/contractpro-repo/contractpro:$SHORT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'       # makes the URL public
+      - '--quiet'
+
+images:
+  - 'us-central1-docker.pkg.dev/$ContractPro-WebApp/contractpro-repo/contractpro:$SHORT_SHA'
