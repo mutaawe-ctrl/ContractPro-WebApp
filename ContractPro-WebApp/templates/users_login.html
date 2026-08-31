@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Profile | ContractPro</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='fonts/bootstrap-icons.css') }}" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(-45deg, #e2e8f0, #f8fafc, #e0e7ff, #f1f5f9);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            min-height: 100vh;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: radial-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+            background-size: 24px 24px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: opacity, transform;
+            position: relative;
+            z-index: 1;
+        }
+
+        .fade-out {
+            opacity: 0 !important;
+            transform: scale(0.96) translateY(-10px) !important;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+            padding: 4rem 3rem;
+            width: 100%;
+            max-width: 720px;
+            text-align: center;
+        }
+
+        .profile-card {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 2rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-8px);
+            background: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.12);
+        }
+
+        .profile-card:hover .avatar-ring {
+            border-color: #3b82f6;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+
+        .avatar-ring {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 3px solid #e2e8f0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            background: #ffffff;
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .role-badge {
+            font-size: 0.72rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-top: 0.75rem;
+        }
+
+        .badge-admin {
+            background: rgba(239, 68, 68, 0.08);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .badge-user {
+            background: rgba(100, 116, 139, 0.08);
+            color: #475569;
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+
+        .brand-logo {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1060;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .custom-toast {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            color: white;
+            padding: 1rem 1.25rem;
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Transition Loading Overlay */
+        #loader { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(241, 245, 249, 0.95); display: none; align-items: center; justify-content: center; 
+            z-index: 9999; backdrop-filter: blur(8px); flex-direction: column;
+            transition: all 0.3s ease;
+            opacity: 0;
+        }
+        .spinner { width: 50px; height: 50px; border: 4px solid #cbd5e1; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <h5 class="fw-bold text-dark mb-1" id="loaderText">Loading Profile...</h5>
+        <p class="text-secondary small">Preparing your secure workspace...</p>
+    </div>
+
+    <div class="container py-5 d-flex justify-content-center" id="mainContainer">
+        <div class="login-card">
+            <div class="d-flex align-items-center justify-content-center mb-2 gap-2">
+                <i class="bi bi-shield-lock-fill text-primary" style="font-size: 2.5rem; color: #3b82f6 !important;"></i>
+                <span class="brand-logo">Contract<span style="color:#3b82f6;">Pro</span></span>
+            </div>
+            <h4 class="text-dark mb-1 fw-bold">Select Active Profile</h4>
+            <p class="text-secondary small mb-4">Select your profile context to access the system dashboard.</p>
+
+            {% if google_oauth_enabled %}
+            <!-- Sign in with Google Button -->
+            <div class="mb-4">
+                <a href="{{ url_for('google_login') }}" 
+                   class="btn d-inline-flex align-items-center gap-2 px-4 py-2 fw-semibold"
+                   style="background: #ffffff; border: 1.5px solid #dadce0; border-radius: 12px; color: #3c4043; font-size: 0.95rem; transition: all 0.2s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-decoration: none;"
+                   onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'; this.style.borderColor='#c0c0c0';"
+                   onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08)'; this.style.borderColor='#dadce0';">
+                    <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                        <path fill="none" d="M0 0h48v48H0z"/>
+                    </svg>
+                    Sign in with Google
+                </a>
+                <div class="d-flex align-items-center my-3 gap-2">
+                    <hr class="flex-grow-1 m-0" style="border-color: #e2e8f0;">
+                    <span class="text-secondary small px-2">or select profile below</span>
+                    <hr class="flex-grow-1 m-0" style="border-color: #e2e8f0;">
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- View 1: Focused Admin Profile View (Default) -->
+            <div id="adminProfileView" {% if from_non_admin %}style="display: none;"{% endif %}>
+                <div class="row justify-content-center">
+                    <div class="col-8 col-sm-5 col-md-4">
+                        {% if users %}
+                            {% set admin_user = users | selectattr("is_admin", "equalto", 1) | first or users[0] %}
+                            <div onclick="selectProfile({{ admin_user.id }}, '{{ admin_user.name|replace("'","\\'")|e }}', {% if admin_user.password %}true{% else %}false{% endif %}, {% if admin_user.biometrics_enabled %}true{% else %}false{% endif %})" 
+                                 class="profile-card position-relative overflow-hidden shadow-sm py-4"
+                                 style="background: #ffffff !important; border: 2px solid #3b82f6 !important; border-radius: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;"
+                                 onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 12px 30px rgba(59, 130, 246, 0.12)';"
+                                 onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+                                
+                                <div class="avatar-ring mb-3 mx-auto" style="width: 110px; height: 110px; border-radius: 50%; border: 3.5px solid #3b82f6; transition: all 0.3s ease; position: relative; z-index: 2; background: #ffffff;">
+                                    <img src="{{ url_for('get_user_avatar', user_id=admin_user.id) }}" alt="Avatar" class="avatar-img">
+                                </div>
+                                <h6 class="text-slate-800 fw-bold mb-1.5 text-truncate w-100" style="position: relative; z-index: 2; letter-spacing: -0.02em; font-family: 'Inter', sans-serif; font-size: 1.1rem;">{{ admin_user.name }}</h6>
+                                <span class="badge fw-bold shadow-sm" style="position: relative; z-index: 2; font-size: 0.72rem; letter-spacing: 0.05em; padding: 5px 12px; border-radius: 30px; background: rgba(59, 130, 246, 0.08); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.15); font-weight: 700;">
+                                    <i class="bi bi-shield-lock-fill me-1"></i>Admin Profile
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Switch Profile Button (Only if there are other accounts) -->
+                {% if users|length > 1 %}
+                <div class="text-center mt-4 pt-2">
+                    <button type="button" class="btn fw-bold px-4 py-2.5 d-inline-flex align-items-center gap-2" 
+                            style="border-radius: 10px; font-size: 0.85rem; transition: all 0.25s ease; border: 1.5px solid rgba(16, 185, 129, 0.35); color: #10b981; background: transparent;"
+                            onmouseover="this.style.background='rgba(16, 185, 129, 0.08)'; this.style.color='#10b981'; this.style.borderColor='#10b981';"
+                            onmouseout="this.style.background='transparent'; this.style.color='#10b981'; this.style.borderColor='rgba(16, 185, 129, 0.35)';"
+                            onclick="showAllProfiles()">
+                        <i class="bi bi-people-fill"></i> Not the Admin? Switch Profile
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- View 2: Multi-Profile Switcher View (Hidden by Default) -->
+            <div id="allProfilesView" {% if from_non_admin %}style="display: block; opacity: 1;"{% else %}style="display: none; opacity: 0;"{% endif %}>
+                <div class="row g-4 justify-content-center">
+                    {% for user in users %}
+                    <div class="col-6 col-sm-4">
+                        <div onclick="selectProfile({{ user.id }}, '{{ user.name|replace("'","\\'")|e }}', {% if user.password %}true{% else %}false{% endif %}, {% if user.biometrics_enabled %}true{% else %}false{% endif %})" 
+                             class="profile-card position-relative overflow-hidden shadow-sm"
+                             style="background: #ffffff !important; border: 1.5px solid #e2e8f0 !important; border-radius: 20px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);"
+                             onmouseover="this.style.transform='translateY(-8px)'; this.style.borderColor='#3b82f6'; this.style.boxShadow='0 10px 25px rgba(59, 130, 246, 0.08)';"
+                             onmouseout="this.style.transform='none'; this.style.borderColor='#e2e8f0'; this.style.boxShadow='none';">
+                            
+                            <div class="avatar-ring mb-3" style="width: 105px; height: 105px; border-radius: 50%; border: 3px solid #e2e8f0; transition: all 0.3s ease; position: relative; z-index: 2; background: #ffffff;"
+                                 onmouseover="this.style.borderColor='#3b82f6';"
+                                 onmouseout="this.style.borderColor='#e2e8f0';">
+                                <img src="{{ url_for('get_user_avatar', user_id=user.id) }}" alt="Avatar" class="avatar-img">
+                            </div>
+                            <h6 class="text-slate-800 fw-bold mb-1.5 text-truncate w-100" style="position: relative; z-index: 2; letter-spacing: -0.02em; font-family: 'Inter', sans-serif;">{{ user.name }}</h6>
+                            {% if user.is_admin %}
+                            <span class="badge fw-bold shadow-sm" style="position: relative; z-index: 2; font-size: 0.72rem; letter-spacing: 0.05em; padding: 5px 12px; border-radius: 30px; background: rgba(59, 130, 246, 0.08); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.15); font-weight: 700;">
+                                <i class="bi bi-shield-lock-fill me-1"></i>Admin
+                            </span>
+                            {% else %}
+                            <span class="badge fw-bold shadow-sm" style="position: relative; z-index: 2; font-size: 0.72rem; letter-spacing: 0.05em; padding: 5px 12px; border-radius: 30px; background: rgba(100, 116, 139, 0.08); color: #475569; border: 1px solid rgba(100, 116, 139, 0.15); font-weight: 700;">
+                                <i class="bi bi-person-fill me-1"></i>Standard
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="mt-5 pt-4 border-top border-secondary border-opacity-10 text-center">
+                <a href="{{ url_for('close_database') }}" onclick="closeDbTransition(event, '{{ url_for('close_database') }}')" class="btn btn-outline-secondary btn-sm py-2 px-3 fw-bold" style="border-radius: 8px;">
+                    <i class="bi bi-x-circle me-1.5"></i> Close Database
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PASSWORD MODAL -->
+    <div class="modal fade" id="passwordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+            <div class="modal-content border-0" style="border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.12); background: white; color: #0f172a;">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark w-100 text-center mt-2">
+                        <i class="bi bi-shield-lock-fill text-primary" style="font-size: 2.2rem; color: #3b82f6 !important;"></i>
+                        <div class="mt-2 text-dark" style="font-size: 1.2rem; letter-spacing: -0.01em;">Security Verification</div>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="passwordForm" method="POST">
+                    <div class="modal-body px-4 py-3 text-center">
+                        <p class="text-secondary small mb-3">Please enter the password for <strong class="text-dark" id="modalUserName">Admin</strong> to verify your identity.</p>
+                        <input type="password" name="password" id="modalPasswordInput" class="form-control form-control-lg text-center fw-bold" 
+                               style="border-radius: 10px; letter-spacing: 0.1em; border: 1.5px solid #cbd5e1; color: #0f172a;" placeholder="••••••••" required>
+                    </div>
+                    <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                        <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold" style="border-radius: 12px; background: #3b82f6; border: none;">Verify & Unlock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS dependencies -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+
+    <script>
+        const biometricsAvailable = {{ 'true' if biometrics_available else 'false' }};
+
+        function startTransition(profileName) {
+            document.getElementById('loaderText').innerText = `Signing in as ${profileName}...`;
+            document.getElementById('mainContainer').classList.add('fade-out');
+            
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.display = 'flex';
+                setTimeout(() => {
+                    loader.style.opacity = '1';
+                }, 50);
+            }, 250);
+        }
+
+        function closeDbTransition(event, url) {
+            event.preventDefault();
+            document.getElementById('loaderText').innerText = 'Closing Database...';
+            document.getElementById('mainContainer').classList.add('fade-out');
+            
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.display = 'flex';
+                setTimeout(() => {
+                    loader.style.opacity = '1';
+                }, 50);
+                setTimeout(() => {
+                    window.location.href = url;
+                }, 500);
+            }, 250);
+        }
+
+        function selectProfile(userId, userName, hasPassword, biometricsEnabled) {
+            if (hasPassword) {
+                document.getElementById('modalUserName').innerText = userName;
+                document.getElementById('passwordForm').action = `/users/select/${userId}`;
+                document.getElementById('modalPasswordInput').value = '';
+                
+                const modalEl = document.getElementById('passwordModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+                
+                modalEl.addEventListener('shown.bs.modal', function () {
+                    document.getElementById('modalPasswordInput').focus();
+                    
+                    // Automatically trigger biometric authentication if enabled and supported!
+                    if (biometricsAvailable && biometricsEnabled) {
+                        triggerBiometricAuth(userId);
+                    }
+                }, { once: true });
+            } else {
+                startTransition(userName);
+                setTimeout(() => {
+                    window.location.href = `/users/select/${userId}`;
+                }, 750);
+            }
+        }
+
+        let isBiometricsRunning = false;
+
+        function triggerBiometricAuth(userId) {
+            if (!userId || isBiometricsRunning) return;
+            isBiometricsRunning = true;
+            
+            const submitBtn = document.querySelector('#passwordForm button[type="submit"]');
+            const passwordInput = document.getElementById('modalPasswordInput');
+            
+            // Disable interactions during biometric challenge
+            submitBtn.disabled = true;
+            const originalPlaceholder = passwordInput.placeholder;
+            passwordInput.placeholder = "Prompting biometric authentication...";
+            passwordInput.disabled = true;
+            
+            fetch(`/users/biometric-auth/${userId}`, {
+                method: 'POST'
+            })
+            .then(r => r.json())
+            .then(data => {
+                isBiometricsRunning = false;
+                if (data.success) {
+                    const modalEl = document.getElementById('passwordModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    
+                    const userName = document.getElementById('modalUserName').innerText;
+                    startTransition(userName);
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 750);
+                } else {
+                    submitBtn.disabled = false;
+                    passwordInput.placeholder = originalPlaceholder;
+                    passwordInput.disabled = false;
+                    passwordInput.focus();
+                    showToast(data.error);
+                }
+            })
+            .catch(err => {
+                isBiometricsRunning = false;
+                submitBtn.disabled = false;
+                passwordInput.placeholder = originalPlaceholder;
+                passwordInput.disabled = false;
+                passwordInput.focus();
+                showToast("Biometric authentication failed: " + err);
+            });
+        }
+
+        document.getElementById('passwordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const passwordInput = document.getElementById('modalPasswordInput');
+            const password = passwordInput.value;
+            const actionUrl = this.getAttribute('action');
+            const userName = document.getElementById('modalUserName').innerText;
+            
+            // Set loading state on modal button
+            submitBtn.disabled = true;
+            const originalBtnText = submitBtn.innerText;
+            submitBtn.innerText = "Verifying...";
+            
+            const formData = new FormData();
+            formData.append('password', password);
+            formData.append('ajax', '1');
+            
+            fetch(actionUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    // Password correct! Hide modal and show fullscreen sign-in transition
+                    const modalEl = document.getElementById('passwordModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                    
+                    startTransition(userName);
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 750);
+                } else {
+                    // Password wrong! Reset the submit button, clear password input, focus it, and show toast directly without any transitions
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = originalBtnText;
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                    showToast(data.error);
+                }
+            })
+            .catch(err => {
+                submitBtn.disabled = false;
+                submitBtn.innerText = originalBtnText;
+                showToast("Connection error: " + err);
+            });
+        });
+
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            
+            // Clear any old/existing popup messages instantly
+            container.innerHTML = '';
+            
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast d-flex align-items-center gap-2 mb-2';
+            toast.innerHTML = `<i class="bi bi-info-circle-fill text-primary"></i> <div>${message}</div>`;
+            container.appendChild(toast);
+            
+            // Dynamic duration: 10 seconds for long/recovery messages, 6 seconds for normal ones
+            let duration = 6000;
+            if (message.length > 80 || message.includes('mutaawemandela') || message.includes('+256')) {
+                duration = 10000;
+            }
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function showAllProfiles() {
+            document.getElementById('adminProfileView').style.display = 'none';
+            const allProfiles = document.getElementById('allProfilesView');
+            allProfiles.style.display = 'block';
+            allProfiles.style.opacity = '0';
+            setTimeout(() => {
+                allProfiles.style.transition = 'opacity 0.3s ease';
+                allProfiles.style.opacity = '1';
+            }, 50);
+        }
+
+        function showAdminProfile() {
+            document.getElementById('allProfilesView').style.display = 'none';
+            const adminProfile = document.getElementById('adminProfileView');
+            adminProfile.style.display = 'block';
+            adminProfile.style.opacity = '0';
+            setTimeout(() => {
+                adminProfile.style.transition = 'opacity 0.3s ease';
+                adminProfile.style.opacity = '1';
+            }, 50);
+        }
+
+
+
+        // Show standard Flask flash messages
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    showToast("{{ message }}");
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </script>
+</body>
+</html>

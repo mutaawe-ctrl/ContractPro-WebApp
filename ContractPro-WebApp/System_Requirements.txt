@@ -1,0 +1,9 @@
+ContractPro - Recommended System Requirements
+
+- OS: macOS 13.0 (Ventura) or newer
+- Processor: Apple Silicon M-Series (M1, M2, M3, M4, M5, or newer)
+- Memory (RAM): 8 GB or higher (ensures zero lag with large datasets)
+- Storage: 1 GB fast SSD storage
+- Display: 1920 x 1080 (1080p) or higher (better for wide financial tables)
+
+Note: ContractPro runs entirely locally and does not require an active internet connection.

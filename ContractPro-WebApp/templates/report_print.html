@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report - {{ settings.name or 'ContractPro' }}</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/inter.css') }}" rel="stylesheet">
+    <style>
+        :root {
+            --brand-primary: #2563eb;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-light: #f1f5f9;
+        }
+
+        @page {
+            {% if report_type == 'monthly_payments' or report_type == 'ura_report' %}
+            size: A4 landscape;
+            margin: 10mm 12mm;
+            {% else %}
+            size: A4 portrait;
+            margin: 15mm;
+            {% endif %}
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #f1f5f9; 
+            color: var(--text-main); 
+            padding: 20px 0; 
+            margin: 0;
+            line-height: 1.4;
+            font-size: {% if report_type == 'monthly_payments' or report_type == 'ura_report' %}10px{% else %}11px{% endif %};
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .report-page {
+            {% if report_type == 'monthly_payments' or report_type == 'ura_report' %}
+            width: 297mm;
+            min-height: 210mm;
+            {% else %}
+            width: 210mm;
+            min-height: 297mm;
+            {% endif %}
+            margin: 0 auto;
+            padding: {% if report_type == 'monthly_payments' or report_type == 'ura_report' %}10mm 12mm{% else %}15mm{% endif %};
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        /* Header Layout */
+        .report-meta-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--text-main);
+        }
+
+        .title-block h1 {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+
+        .title-block p {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin: 2px 0 0 0;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .details-block {
+            text-align: right;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .details-block .primary-info {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Table Design - Optimized for Printing */
+        .table { 
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            table-layout: auto; /* Changed to auto for better print flexibility */
+        }
+
+        .table thead { display: table-header-group; }
+
+        .table thead th { 
+            background: #fafafa !important;
+            color: var(--text-muted) !important; 
+            border-bottom: 2px solid var(--text-main) !important; 
+            text-transform: uppercase; 
+            font-weight: 700;
+            padding: 10px 5px;
+            font-size: 10px;
+            text-align: left;
+        }
+
+        .table tbody td { 
+            border-bottom: 1px solid var(--border-light) !important; 
+            padding: 10px 5px; 
+            vertical-align: top;
+            font-size: 11px;
+            word-wrap: break-word;
+        }
+
+        .table tbody tr { page-break-inside: avoid; }
+        .table tbody tr:nth-child(even) { background-color: #fcfcfc !important; }
+
+        /* Column Specifics */
+        .col-id { font-weight: 700; color: var(--brand-primary); text-align: center; width: 40px; }
+        .col-date { white-space: nowrap; text-align: center; width: 85px; }
+        .col-details { width: auto; color: var(--text-main); }
+        .col-area { text-align: center; color: var(--text-muted); width: 80px; }
+        .col-contract { text-align: center; color: var(--text-muted); width: 85px; }
+        .col-invoice { text-align: center; width: 75px; }
+        .col-dn { text-align: center; color: var(--text-muted); width: 85px; }
+        .col-amount { text-align: right; font-weight: 700; width: 110px; }
+
+        .total-row {
+            border-top: 2px solid var(--text-main);
+            background: #fff !important;
+        }
+
+        .total-label {
+            text-align: right;
+            padding: 15px;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .total-value {
+            text-align: right;
+            padding: 15px 5px;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--brand-primary);
+        }
+
+        /* Footer Pins to Bottom of last page */
+        .content-spacer { flex-grow: 1; }
+
+        .report-footer-modern {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-light);
+            page-break-inside: avoid;
+        }
+
+        .footer-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .info-col h6 {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .footer-branding-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+            padding-top: 15px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .print-controls { position: fixed; top: 15px; left: 15px; z-index: 1000; }
+        
+        @media print {
+            @page { margin: 15mm; }
+            body { background: white; padding: 0; }
+            .report-page { 
+                box-shadow: none; 
+                margin: 0; 
+                width: 100%; 
+                padding: 0; 
+                min-height: auto;
+                display: block; /* Disable flex for print compatibility */
+            }
+            .print-controls { display: none; }
+            .table { table-layout: auto; border: 1px solid #eee; }
+            .table thead th { -webkit-print-color-adjust: exact; background-color: #fafafa !important; color: #666 !important; }
+            .table tbody tr:nth-child(even) { background-color: #fcfcfc !important; -webkit-print-color-adjust: exact; }
+            .content-spacer { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="print-controls">
+        <button onclick="window.print()" class="btn btn-primary shadow fw-bold px-4 py-2">Print to Paper / PDF</button>
+        <button onclick="window.close()" class="btn btn-outline-secondary ms-2 px-4 py-2">Close</button>
+    </div>
+
+    <div class="report-page">
+        <div class="report-meta-header">
+            <div class="title-block">
+                <h1>
+                    {% if report_type == 'statement' %}{{ client.name }}
+                    {% elif report_type == 'demand_note' %}{{ sale.client_name }}
+                    {% else %}{{ title }}{% endif %}
+                </h1>
+                <p>Official Financial Document</p>
+            </div>
+            <div class="details-block">
+                <div class="primary-info">{{ now.strftime('%d %B %Y') }}</div>
+                <div>Time: {{ now.strftime('%H:%M') }}</div>
+                <div>ID: #{{ (sales[0].id if sales else (sale.id if sale is defined else '000'))|default('000') }}</div>
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="col-id">ENTRY ID</th>
+                    <th class="col-date">{% if report_type == 'monthly_payments' %}PAY DATE{% elif report_type == 'ura_report' %}TAX INV DATE{% else %}DATE{% endif %}</th>
+                    {% if report_type == 'monthly_payments' %}<th class="col-date">TAX INV DATE</th>{% endif %}
+                    {% if report_type == 'monthly_payments' %}<th class="col-date">COMPLETION DATE</th>{% endif %}
+                    {% if report_type == 'ura_report' %}<th class="col-date">COMPLETION DATE</th>{% endif %}
+                    <th class="col-details">CONTRACT DETAILS</th>
+                    <th class="col-area">AREA</th>
+                    <th class="col-contract">CONTRACT NO</th>
+                    <th class="col-invoice">TAX INVOICE NO.</th>
+                    {% if report_type != 'ura_report' %}<th class="col-dn">DELIVERY NOTE NO.</th>{% endif %}
+                    {% if report_type == 'ura_report' %}<th class="col-date">TAX PERIOD</th>{% endif %}
+                    {% if report_type == 'ura_report' %}<th class="col-amount" style="color:#b45309;">VAT ({{ vat_rate or 18 }}%)</th>{% endif %}
+                    {% if report_type == 'monthly_payments' %}<th class="col-amount" style="color:#b45309;">VAT ({{ vat_rate or 18 }}%)</th>{% endif %}
+                    {% if report_type == 'monthly_payments' %}<th class="col-amount" style="color:#dc2626;">WHT ({{ wht_rate or 6 }}%)</th>{% endif %}
+                    {% if report_type == 'ura_report' %}<th style="text-align:center;width:90px;">URA STATUS</th>{% endif %}
+                    <th class="col-amount">AMOUNT ({{ currency or 'UGX' }})</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if report_type == 'demand_note' %}
+                    <tr>
+                        <td class="col-id">{{ sale.entry_id }}</td>
+                        <td class="col-date">{{ sale.completion_date|custom_date }}</td>
+                        <td class="col-details">{{ sale.contract_details|default('-') }}</td>
+                        <td class="col-area">{{ sale.area_name|default('-') }}</td>
+                        <td class="col-contract">{{ sale.contract_no|default('-') }}</td>
+                        <td class="col-invoice">{{ sale.invoice_code|no_decimal|default('-') }}</td>
+                        <td class="col-dn">{{ sale.po_no|no_decimal|default('-') }}</td>
+                        <td class="col-amount">{{ "{:,.0f}".format(sale.total) }}</td>
+                    </tr>
+                {% else %}
+                    {% for s in sales %}
+                    <tr>
+                        <td class="col-id">{{ s.entry_id }}</td>
+                        <td class="col-date">
+                            {% if report_type == 'monthly_payments' %}
+                                {{ s.payment_date|custom_date }}
+                            {% elif report_type == 'ura_report' %}
+                                {{ s.tax_invoice_date|custom_date if s.tax_invoice_date else '—' }}
+                            {% else %}
+                                {{ s.completion_date|custom_date }}
+                            {% endif %}
+                        </td>
+                        {% if report_type == 'monthly_payments' %}
+                        <td class="col-date">{{ s.tax_invoice_date|custom_date if s.tax_invoice_date else '—' }}</td>
+                        <td class="col-date">{{ s.completion_date|custom_date if s.completion_date else '—' }}</td>
+                        {% endif %}
+                        {% if report_type == 'ura_report' %}
+                        <td class="col-date">{{ s.completion_date|custom_date if s.completion_date else '—' }}</td>
+                        {% endif %}
+                        <td class="col-details">{{ s.contract_details|default('-') }}</td>
+                        <td class="col-area">{{ s.area_name|default('-') }}</td>
+                        <td class="col-contract">{{ s.contract_no|default('-') }}</td>
+                        <td class="col-invoice">{{ s.invoice_code|no_decimal|default('-') }}</td>
+                        {% if report_type == 'ura_report' %}
+                        <td class="col-date" style="color:#64748b;">{{ s.tax_period or '—' }}</td>
+                        <td class="col-amount" style="color:{% if s.is_vat_rated %}#b45309{% else %}#94a3b8{% endif %};">{% if s.is_vat_rated %}{{ "{:,.0f}".format(s.vat) }}{% else %}—{% endif %}</td>
+                        <td style="text-align:center;">
+                            <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;background:{{'#16a34a' if s.ura_status=='PAID' else ('#2563eb' if s.ura_status=='OFFSET' else ('#dc2626' if s.ura_status=='UNPAID' else ('#d97706' if s.ura_status=='PENDING' else ('#374151' if s.ura_status=='CANCELLED' else '#6b7280'))))}};color:{{'#000' if s.ura_status=='PENDING' else '#fff'}};">{{ s.ura_status }}</span>
+                        </td>
+                        {% else %}
+                        <td class="col-dn">{{ s.po_no|no_decimal|default('-') }}</td>
+                        {% if report_type == 'monthly_payments' %}
+                        <td class="col-amount" style="color:{% if s.is_vat_rated %}#b45309{% else %}#94a3b8{% endif %};">{% if s.is_vat_rated %}{{ "{:,.0f}".format(s.vat) }}{% else %}—{% endif %}</td>
+                        <td class="col-amount" style="color:{% if s.wht %}#dc2626{% else %}#94a3b8{% endif %};">{% if s.wht %}{{ "{:,.0f}".format(s.wht) }}{% else %}—{% endif %}</td>
+                        {% endif %}
+                        {% endif %}
+                        <td class="col-amount">{{ "{:,.0f}".format(s.total) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            {% if report_type == 'monthly_payments' %}
+            {% set total_vat = namespace(v=0) %}{% set total_wht = namespace(v=0) %}
+            {% for s in sales %}{% if s.is_vat_rated %}{% set total_vat.v = total_vat.v + (s.vat or 0) %}{% endif %}{% set total_wht.v = total_wht.v + (s.wht or 0) %}{% endfor %}
+                <tr class="total-row">
+                    <td colspan="11" class="total-label">Total Payments Received</td>
+                    <td class="total-value">{{ "{:,.0f}".format(summary.revenue) }}</td>
+                </tr>
+                <tr style="background:#fffbeb;">
+                    <td colspan="11" class="total-label" style="font-size:10px;color:#92400e;">VAT Collected (18% — VAT-rated entries)</td>
+                    <td style="text-align:right;padding:12px 5px;font-weight:800;font-size:12px;color:#b45309;">{{ "{:,.0f}".format(total_vat.v) }}</td>
+                </tr>
+                <tr style="background:#fff5f5;">
+                    <td colspan="11" class="total-label" style="font-size:10px;color:#991b1b;">WHT Withheld (6%) by Clients</td>
+                    <td style="text-align:right;padding:12px 5px;font-weight:800;font-size:12px;color:#dc2626;">{{ "{:,.0f}".format(total_wht.v) }}</td>
+                </tr>
+                <tr style="background:#f0fdf4;border-top:2px solid #16a34a;">
+                    <td colspan="11" class="total-label" style="font-size:10px;color:#166534;">Net VAT Payable to URA (VAT − WHT)</td>
+                    <td style="text-align:right;padding:12px 5px;font-weight:800;font-size:12px;color:#15803d;">{{ "{:,.0f}".format([total_vat.v - total_wht.v, 0]|max) }}</td>
+                </tr>
+            {% elif report_type == 'ura_report' %}
+                <tr class="total-row">
+                    <td colspan="8" class="total-label">Total URA Tax Report Figures</td>
+                    <td class="total-value" style="color:#b45309; text-align:right;">{{ "{:,.0f}".format(ura_summary.total_vat) }}</td>
+                    <td></td>
+                    <td class="total-value" style="text-align:right;">{{ "{:,.0f}".format(summary.revenue) }}</td>
+                </tr>
+                <tr style="background:#f0fdf4;border-top:2px solid #16a34a;">
+                    <td colspan="8" class="total-label" style="font-size:10px;color:#166534;">VAT Paid to URA</td>
+                    <td style="text-align:right;padding:12px 5px;font-weight:800;font-size:12px;color:#15803d;">{{ "{:,.0f}".format(ura_summary.paid_vat) }}</td>
+                    <td></td><td></td>
+                </tr>
+                <tr style="background:#fff5f5;">
+                    <td colspan="8" class="total-label" style="font-size:10px;color:#991b1b;">VAT Unpaid (Outstanding)</td>
+                    <td style="text-align:right;padding:12px 5px;font-weight:800;font-size:12px;color:#dc2626;">{{ "{:,.0f}".format(ura_summary.unpaid_vat) }}</td>
+                    <td></td><td></td>
+                </tr>
+            {% else %}
+                <tr class="total-row">
+                    <td colspan="{% if report_type == 'demand_note' %}7{% else %}7{% endif %}" class="total-label">Grand Total Outstanding</td>
+                    <td class="total-value">{{ "{:,.0f}".format(summary.revenue if report_type != 'demand_note' else sale.total) }}</td>
+                </tr>
+            {% endif %}
+            </tbody>
+        </table>
+
+        <div class="content-spacer"></div>
+
+        <div class="report-footer-modern">
+            <div class="footer-info-grid">
+                <div class="info-col">
+                    <h6>Contact Info</h6>
+                    <div>{{ settings.contact or '' }}</div>
+                    <div>{{ settings.email or '' }}</div>
+                </div>
+                <div class="info-col">
+                    <h6>Payment Details</h6>
+                    <div>{{ settings.bank_name or '' }}</div>
+                    <div>{% if settings.bank_account_number %}A/C: {{ settings.bank_account_number }}{% endif %}</div>
+                    <div>{% if settings.bank_account_name %}Name: {{ settings.bank_account_name }}{% endif %}</div>
+                </div>
+                <div class="info-col">
+                    <h6>Business Details</h6>
+                    <div>{% if settings.tin_number %}TIN: {{ settings.tin_number }}{% endif %}</div>
+                    <div>{{ settings.name or '' }}</div>
+                </div>
+            </div>
+            
+            <div class="footer-branding-row">
+                <div>{% if settings.footer %}{{ settings.footer }}{% endif %}</div>
+                <div>Page 1 of 1</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

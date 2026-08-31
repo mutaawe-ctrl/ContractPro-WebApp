@@ -1,0 +1,887 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">All Entries Registry</h2>
+        <p class="text-muted mb-0">Comprehensive master transactional ledger and auditing registry.</p>
+    </div>
+</div>
+
+<!-- Organized Premium Filter Section -->
+<div class="card p-4 border-0 shadow-sm mb-4" style="background: #ffffff; border-radius: 16px;">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom" id="allEntriesFilterHeader" style="cursor: pointer; user-select: none;" title="Tap to expand/collapse filters">
+        <h6 class="fw-bold mb-0 text-dark d-flex align-items-center" style="font-size: 0.95rem;">
+            <i class="bi bi-funnel-fill text-primary me-2" style="font-size: 1.1rem;"></i> Registry Filters
+            <span class="text-muted fw-normal ms-2" style="font-size: 0.75rem;">(Tap to toggle)</span>
+        </h6>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-light fw-bold text-muted d-none px-3 py-2" id="resetAllFiltersBtn" onclick="event.stopPropagation(); resetAdvancedFilters()" style="border-radius: 8px; font-size: 0.75rem; border: 1px solid #e2e8f0; transition: all 0.2s;">
+                <i class="bi bi-x-circle me-1"></i>Clear Filters
+            </button>
+            <i class="bi bi-chevron-down ms-2 text-muted" id="allEntriesFilterChevron" style="transition: transform 0.25s ease;"></i>
+        </div>
+    </div>
+    
+    <div class="filter-collapse-container" id="filterChipsCollapse">
+        <div class="d-flex flex-wrap gap-2 w-100" id="filterChipsContainer">
+        
+        <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+            <select id="filter_client" class="filter-chip text-truncate w-100" onchange="handleFilterChange(this); applyFilters()">
+                <option value="">Client: All</option>
+                {% for c in clients %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_client')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+            <select id="filter_area" class="filter-chip text-truncate w-100" onchange="handleFilterChange(this); applyFilters()">
+                <option value="">Area: All</option>
+                {% for a in areas %}
+                <option value="{{ a.id }}">{{ a.name }}</option>
+                {% endfor %}
+            </select>
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_area')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+            <select id="filter_contract_type" class="filter-chip text-truncate w-100" onchange="handleFilterChange(this); applyFilters()">
+                <option value="">Type: All</option>
+            </select>
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_contract_type')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+            <select id="filter_payment" class="filter-chip text-truncate w-100" onchange="handleFilterChange(this); applyFilters()">
+                <option value="">Status: All</option>
+                <option value="PAID">PAID</option>
+                <option value="PENDING">PENDING</option>
+                <option value="BAD DEBT">BAD DEBT</option>
+                <option value="CANCELLED">CANCELLED</option>
+            </select>
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_payment')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+            <select id="filter_ownership_status" class="filter-chip text-truncate w-100" onchange="handleFilterChange(this); applyFilters()">
+                <option value="">Ownership: All</option>
+            </select>
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_ownership_status')"></i>
+        </div>
+
+        <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+            <select id="filter_ura_status" class="filter-chip text-truncate w-100" onchange="handleFilterChange(this); applyFilters()">
+                <option value="">URA Status: All</option>
+                <option value="UNPAID">UNPAID</option>
+                <option value="PAID">PAID</option>
+                <option value="OFFSET">OFFSET</option>
+                <option value="NOT FILEABLE">NOT FILEABLE</option>
+            </select>
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_ura_status')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+            <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">From</span>
+            <input type="date" id="filter_start_date" class="filter-chip px-2 w-100" onchange="handleFilterChange(this); applyFilters()">
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_start_date')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+            <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">To</span>
+            <input type="date" id="filter_end_date" class="filter-chip px-2 w-100" onchange="handleFilterChange(this); applyFilters()">
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_end_date')"></i>
+        </div>
+
+        <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+            <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">Min</span>
+            <input type="number" id="filter_min_amount" class="filter-chip px-2 w-100" oninput="handleFilterChange(this); applyFilters()" placeholder="Amount">
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_min_amount')"></i>
+        </div>
+        
+        <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+            <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">Max</span>
+            <input type="number" id="filter_max_amount" class="filter-chip px-2 w-100" oninput="handleFilterChange(this); applyFilters()" placeholder="Amount">
+            <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearFilterChip('filter_max_amount')"></i>
+        </div>
+        
+    </div>
+</div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Master Transactional Table & KPI Wrapper -->
+    <div class="col-12">
+        <div class="card p-4 border-0 shadow-sm" style="border-radius: 16px !important;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                Registry Summary
+                <div class="d-flex align-items-center gap-2">
+
+                    <!-- Export Excel -->
+                    <button type="button" onclick="exportTableToExcel()" class="btn btn-modern-success btn-sm fw-bold px-4 py-2" style="height: 38px; width: 160px;">
+                        <i class="bi bi-file-earmark-excel-fill me-2"></i>Export Excel
+                    </button>
+                </div>
+            </h5>
+
+            <!-- KPI Summary Background Card -->
+            <div class="card p-3 border-0 mb-3 shadow-sm" style="background-color: #f8fafc; border-radius: 16px;">
+                <h6 class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing: .05em;">Registry Summary Metrics</h6>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-revenue">
+                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                <span class="fw-bold small text-uppercase" style="color: rgba(255,255,255,0.75); letter-spacing: 0.08em; font-size: 0.7rem; white-space: nowrap;">TOTAL REVENUE</span>
+                                <h4 class="fw-bold mb-0 text-white" style="font-size: 1.22rem; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span class="fw-normal me-1 text-white text-opacity-75" style="font-size: 0.8rem;">{{ currency or 'UGX' }}</span><span id="stat_revenue"><span class="kpi-skeleton"></span></span>
+                                </h4>
+                                <i class="bi bi-wallet2 kpi-watermark"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-profit">
+                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                <span class="fw-bold small text-uppercase" style="color: rgba(255,255,255,0.75); letter-spacing: 0.08em; font-size: 0.7rem; white-space: nowrap;">EST. NET PROFIT</span>
+                                <h4 class="fw-bold mb-0 text-white" style="font-size: 1.22rem; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span class="fw-normal me-1 text-white text-opacity-75" style="font-size: 0.8rem;">{{ currency or 'UGX' }}</span><span id="stat_profit"><span class="kpi-skeleton"></span></span>
+                                </h4>
+                                <i class="bi bi-graph-up-arrow kpi-watermark"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-paid">
+                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                <span class="fw-bold small text-uppercase" style="color: rgba(255,255,255,0.75); letter-spacing: 0.08em; font-size: 0.7rem; white-space: nowrap;">COLLECTED (PAID)</span>
+                                <h4 class="fw-bold mb-0 text-white" style="font-size: 1.22rem; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span class="fw-normal me-1 text-white text-opacity-75" style="font-size: 0.8rem;">{{ currency or 'UGX' }}</span><span id="stat_collected"><span class="kpi-skeleton"></span></span>
+                                </h4>
+                                <i class="bi bi-cash-coin kpi-watermark"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-unpaid">
+                            <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                <span class="fw-bold small text-uppercase" style="color: rgba(255,255,255,0.75); letter-spacing: 0.08em; font-size: 0.7rem; white-space: nowrap;">OUTSTANDING (PENDING)</span>
+                                <h4 class="fw-bold mb-0 text-white" style="font-size: 1.22rem; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span class="fw-normal me-1 text-white text-opacity-75" style="font-size: 0.8rem;">{{ currency or 'UGX' }}</span><span id="stat_outstanding"><span class="kpi-skeleton"></span></span>
+                                </h4>
+                                <i class="bi bi-exclamation-circle kpi-watermark"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtered Records & Quick Search Bar -->
+            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2 flex-wrap gap-2">
+                <h5 class="fw-bold mb-0">Filtered Records</h5>
+                <div class="position-relative" id="searchBoxWrapper" style="width: 100%; max-width: 550px;">
+                    <i class="bi bi-search position-absolute text-muted" id="searchIcon" style="left: 16px; top: 50%; transform: translateY(-50%); z-index: 5; font-size: 0.95rem;"></i>
+                    <input type="text" id="registrySearch" class="form-control shadow-sm" placeholder="Search invoices, clients, contracts, POS..." style="padding-left: 42px; border-radius: 12px; height: 44px; font-size: 0.95rem; font-weight: 500; color: #1e293b; background: white;">
+                    <button type="button" id="clearSearchBtn" class="btn position-absolute border-0 text-muted d-none" style="right: 10px; top: 50%; transform: translateY(-50%); z-index: 100; box-shadow: none !important;"><i class="bi bi-x-circle-fill" style="font-size: 1rem;"></i></button>
+                </div>
+            </div>
+
+            <!-- Table Responsive Container -->
+            <div class="table-responsive rounded-3 border" style="max-height: calc(100vh - 275px); overflow-y: auto;">
+                <table class="table modern-table align-middle mb-0" id="masterRegistry" style="white-space: nowrap;">
+                    <thead class="table-light sticky-top shadow-sm" style="z-index: 50;">
+                        <tr class="small fw-bold text-muted text-uppercase">
+                            <th class="py-3 ps-4 border-0 sticky-col-1" style="width: 100px;">Entry ID</th>
+                            <th class="py-3 border-0 sticky-col-2 col-details">Contract Details</th>
+                            <th class="py-3 border-0 col-completion-date">Completion Date</th>
+                            <th class="py-3 border-0 col-contract-no">Contract No.</th>
+                            <th class="py-3 border-0 col-po-no">Delivery Note No.</th>
+                            <th class="py-3 border-0 col-invoice">Tax Invoice No.</th>
+                            <th class="py-3 border-0 col-client">Client Name</th>
+                            <th class="py-3 border-0 col-area">Supply Area</th>
+                            <th class="py-3 border-0 col-company">Supplying Company</th>
+                            <th class="py-3 border-0 col-type">Contract Type</th>
+                            <th class="py-3 border-0 col-ownership">Ownership Status</th>
+                            <th class="py-3 border-0 col-gov">Government?</th>
+                            <th class="py-3 border-0 col-vat-rated">VAT Rated?</th>
+                            <th class="py-3 text-center border-0 col-payment-status">Payment Status</th>
+                            <th class="py-3 text-muted text-opacity-75 border-0 col-payment-date">Payment Date</th>
+                            <th class="py-3 border-0 col-ura">URA Status</th>
+                            <th class="py-3 border-0 col-tax-period">Tax Period</th>
+                            <th class="py-3 text-end border-0 col-total">Contract Amount</th>
+                            <th class="py-3 text-end border-0 col-investment">Investment Amount</th>
+                            <th class="py-3 text-end text-info border-0 col-vat">VAT (18%)</th>
+                            <th class="py-3 text-end text-success border-0 col-net">Net Payable</th>
+                            <th class="py-3 text-end text-emerald border-0 col-profit">Profit</th>
+                            {% if session.get('is_admin') %}
+                            <th class="py-3 text-end pe-4 border-0 col-actions">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody class="border-top-0" id="registryBody">
+                        <tr id="loadingSkeleton">
+                            <td colspan="22" class="text-center py-5">
+                                <div class="d-flex flex-column align-items-center gap-3">
+                                    <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem; border-width: 3px;">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="text-muted fw-semibold" style="font-size: 0.9rem;">Loading registry data…</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Load More / Infinite Scroll Sentinel -->
+            <div id="loadMoreSection" class="text-center py-3 d-none">
+                <button id="loadMoreBtn" class="btn btn-light fw-bold px-4 py-2 shadow-sm" onclick="loadNextPage()" style="border-radius: 10px; font-size: 0.85rem; border: 1px solid #e2e8f0;">
+                    <i class="bi bi-arrow-down-circle me-2"></i>Load More <span id="loadMoreCount" class="text-muted ms-1"></span>
+                </button>
+                <div id="loadMoreSpinner" class="d-none py-2">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                </div>
+            </div>
+            <div id="allLoadedMsg" class="text-center py-2 d-none">
+                <span class="text-muted fw-semibold" style="font-size: 0.8rem;"><i class="bi bi-check-circle me-1 text-success"></i>All <span id="totalLoadedCount">0</span> entries loaded</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<style>
+    /* High-Risk row highlighting: payment collected but URA unpaid */
+    .high-risk-row {
+        background: rgba(220, 38, 38, 0.045) !important;
+    }
+    .high-risk-row:hover {
+        background: rgba(220, 38, 38, 0.08) !important;
+    }
+    @keyframes ura-pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.15); }
+    }
+    .ura-risk-icon {
+        animation: ura-pulse 1.4s ease-in-out infinite;
+        color: #dc2626;
+        font-size: 0.85rem;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
+    /* Premium button styles to match reports page formatting */
+    .btn-modern-primary {
+        background: #2563eb !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-primary:hover {
+        background: #1d4ed8 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+    }
+
+    .btn-modern-success {
+        background: #10b981 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-success:hover {
+        background: #059669 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+    }
+
+    .btn-modern-neutral {
+        background: #e2e8f0 !important;
+        color: #475569 !important;
+        border: none !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-neutral:hover {
+        background: #cbd5e1 !important;
+        color: #1e293b !important;
+        transform: translateY(-1px);
+    }
+
+
+
+    /* Precision custom spacing utilities to fix layout organization */
+    .p-3.5 { padding: 1.25rem !important; }
+    .p-1.5 { padding: 0.625rem !important; }
+    .pt-3.5 { padding-top: 1.25rem !important; }
+    .pb-2.5 { padding-bottom: 0.875rem !important; }
+    .mb-3.5 { margin-bottom: 1.25rem !important; }
+    .mb-1.5 { margin-bottom: 0.625rem !important; }
+    .py-1.5 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+    .py-1.25 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+    .px-2.5 { padding-left: 0.875rem !important; padding-right: 0.875rem !important; }
+    .px-3.5 { padding-left: 1.25rem !important; padding-right: 1.25rem !important; }
+    .ps-3.5 { padding-left: 1.25rem !important; }
+    .pe-3.5 { padding-right: 1.25rem !important; }
+    .gap-2.5 { gap: 0.875rem !important; }
+    .gap-1.5 { gap: 0.5rem !important; }
+
+    /* Uniform action buttons sizing */
+    .action-btn {
+        width: 175px !important;
+        height: 46px !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        font-size: 0.85rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+
+    .fw-black { font-weight: 800; }
+    .fw-extrabold { font-weight: 750; }
+    .text-emerald { color: #047857; }
+
+    .kpi-skeleton {
+        display: inline-block;
+        width: 90px;
+        height: 1.15rem;
+        background: rgba(255, 255, 255, 0.35);
+        border-radius: 6px;
+        animation: kpiPulse 1.2s infinite ease-in-out;
+        vertical-align: middle;
+    }
+    @keyframes kpiPulse {
+        0% { opacity: 0.35; }
+        50% { opacity: 0.85; }
+        100% { opacity: 0.35; }
+    }
+    
+    /* Local modern table adjustments */
+    #masterRegistry { font-size: 0.88rem !important; }
+    
+    /* Collapsible Filter Section Animation */
+    .filter-collapse-container {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.3s ease;
+    }
+    .filter-collapse-container.show {
+        max-height: 500px; /* large enough to contain all filter rows */
+        opacity: 1;
+        margin-top: 15px;
+    }
+    
+    
+    
+    /* Tabular alignment for financial data */
+    .amount-col {
+        font-family: 'Inter', monospace;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+    
+    /* Fluid, gorgeous custom scrollbars */
+    .table-responsive::-webkit-scrollbar { width: 10px; height: 10px; }
+    .table-responsive::-webkit-scrollbar-track { background: #f8fafc; border-radius: 10px; }
+    .table-responsive::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2.5px solid #f8fafc; transition: all 0.3s; }
+    .table-responsive::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* Premium filter pills */
+    .filter-pill {
+        background: transparent;
+        color: #64748b;
+        border: none;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .filter-pill:hover { color: #1e293b; background: rgba(226, 232, 240, 0.4); }
+    
+    /* Custom Active States for Status Buttons */
+    .btn-slate-active { background-color: #0f172a !important; color: white !important; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important; }
+    .btn-slate-active .badge-count { background-color: rgba(255, 255, 255, 0.2) !important; color: white !important; }
+    
+    .btn-emerald-active { background-color: #10b981 !important; color: white !important; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important; }
+    .btn-emerald-active .badge-count { background-color: rgba(255, 255, 255, 0.2) !important; color: white !important; }
+    
+    .btn-amber-active { background-color: #f59e0b !important; color: white !important; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2) !important; }
+    .btn-amber-active .badge-count { background-color: rgba(255, 255, 255, 0.2) !important; color: white !important; }
+    
+    .btn-rose-active { background-color: #f43f5e !important; color: white !important; box-shadow: 0 4px 12px rgba(244, 63, 94, 0.2) !important; }
+    .btn-rose-active .badge-count { background-color: rgba(255, 255, 255, 0.2) !important; color: white !important; }
+    
+    /* Hover Lift for summary metrics */
+    .hover-lift { transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08) !important; border-color: rgba(37, 99, 235, 0.15) !important; }
+    
+    .hover-grow { transition: transform 0.2s, box-shadow 0.2s; }
+    .hover-grow:hover { transform: translateY(-1.5px); }
+    
+    /* Column settings dropdown premium hover states */
+    .column-toggle-item {
+        transition: all 0.15s ease-in-out;
+    }
+    .column-toggle-item:hover {
+        background-color: #f1f5f9 !important;
+    }
+    .column-toggle-checkbox:checked {
+        background-color: #2563eb !important;
+        border-color: #2563eb !important;
+    }
+    
+
+</style>
+
+<script>
+(function() {
+    const IS_ADMIN = {{ 'true' if session.get('is_admin') else 'false' }};
+    const PER_PAGE = 100;
+    let currentPage = 0;
+    let hasMore = true;
+    let isLoading = false;
+    let totalRecords = 0;
+    let loadedCount = 0;
+    let filterDebounceTimer = null;
+
+    // ── Helpers ──
+    const fmtNum = v => Math.round(v || 0).toLocaleString('en-US');
+    const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    function getFilterParams() {
+        const p = new URLSearchParams();
+        const clientId = document.getElementById('filter_client').value;
+        const areaId = document.getElementById('filter_area').value;
+        const status = document.getElementById('filter_payment').value;
+        const cType = document.getElementById('filter_contract_type').value;
+        const ownership = document.getElementById('filter_ownership_status').value;
+        const startDate = document.getElementById('filter_start_date').value;
+        const endDate = document.getElementById('filter_end_date').value;
+        const minAmt = document.getElementById('filter_min_amount').value;
+        const maxAmt = document.getElementById('filter_max_amount').value;
+        const search = (document.getElementById('registrySearch').value || '').trim();
+
+        const uraStatusFilter = document.getElementById('filter_ura_status').value;
+
+        if (clientId) p.set('client_id', clientId);
+        if (areaId) p.set('area_id', areaId);
+        if (status) p.set('status', status);
+        if (cType) p.set('contract_type', cType);
+        if (ownership) p.set('ownership', ownership);
+        if (uraStatusFilter) p.set('ura_status', uraStatusFilter);
+        if (startDate) p.set('start_date', startDate);
+        if (endDate) p.set('end_date', endDate);
+        if (minAmt) p.set('min_amount', minAmt);
+        if (maxAmt) p.set('max_amount', maxAmt);
+        if (search) p.set('search', search);
+        return p;
+    }
+
+    // ── Row Renderer ──
+    function renderRow(s, index) {
+        const govBadgeStyle = s.is_gov 
+            ? 'background: rgba(37, 99, 235, 0.1); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.15);'
+            : 'background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;';
+        const vatBadgeStyle = s.is_vat_rated
+            ? 'background: rgba(6, 182, 212, 0.1); color: #0891b2; border: 1px solid rgba(6, 182, 212, 0.15);'
+            : 'background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;';
+        
+        let statusClass = 'status-badge-pending';
+        if (s.payment_status === 'PAID') statusClass = 'status-badge-paid';
+        else if (s.payment_status === 'BAD DEBT' || s.payment_status === 'CANCELLED') statusClass = 'status-badge-baddebt';
+
+        // High-risk: client has paid us but we haven't paid URA tax
+        const isHighRisk = (s.payment_status === 'PAID' && s.ura_status === 'UNPAID');
+        const uraRiskIcon = isHighRisk ? '<i class="bi bi-exclamation-triangle-fill ura-risk-icon" title="HIGH RISK: Invoice collected but URA tax unpaid!"></i>' : '';
+        const uraStatusClass = s.ura_status === 'PAID' ? 'bg-success' : s.ura_status === 'UNPAID' ? 'bg-danger' : s.ura_status === 'OFFSET' ? 'bg-primary' : 'bg-secondary';
+
+        let actionsCol = '';
+        if (IS_ADMIN) {
+            actionsCol = `<td class="text-end pe-4 col-actions" onclick="event.stopPropagation();">
+                <a href="/delete_sale/${s.id}" onclick="const link = this; secureAction(event, 'Authenticate to permanently delete this contract entry.', () => window.location.href = link.href); return false;" class="btn btn-link p-0 text-danger" style="font-size: 1.15rem; line-height: 1; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'" title="Delete Record">
+                    <i class="bi bi-trash3-fill"></i>
+                </a>
+            </td>`;
+        }
+
+        return `<tr class="registry-row staggered-row${isHighRisk ? ' high-risk-row' : ''}"
+            data-payment-status="${esc(s.payment_status)}"
+            data-client-id="${esc(String(s.client_id))}"
+            data-area-name="${esc(s.area_name)}"
+            data-company-name="${esc(s.company_name)}"
+            data-ura-status="${esc(s.ura_status)}"
+            data-total="${s.total || 0}"
+            data-profit="${s.profit || 0}"
+            data-contract-type="${esc(s.contract_type)}"
+            data-ownership-status="${esc(s.ownership_status)}"
+            data-is-gov="${s.is_gov ? 'Yes' : 'No'}"
+            data-is-vat-rated="${s.is_vat_rated ? 'Yes' : 'No'}"
+            data-completion-date="${esc(s.completion_date_raw)}"
+            ondblclick="editInPopup(${s.id})"
+            style="--row-index: ${index}; cursor: pointer; white-space: nowrap;">
+            <td class="fw-extrabold text-primary ps-4 sticky-col-1">${esc(s.entry_id)}</td>
+            <td class="col-details sticky-col-2">
+                <div class="text-truncate fw-bold" style="max-width: 250px; color: #475569; font-size: 0.84rem;" title="${esc(s.contract_details)}">${esc(s.contract_details)}</div>
+            </td>
+            <td class="fw-bold text-dark col-completion-date">${esc(s.completion_date)}</td>
+            <td class="text-muted fw-semibold col-contract-no">${esc(s.contract_no)}</td>
+            <td class="text-muted col-po-no">${esc(s.po_no)}</td>
+            <td class="fw-bold text-dark col-invoice">${esc(s.invoice_code)}</td>
+            <td class="fw-bold text-slate-800 col-client">${esc(s.client_name)}</td>
+            <td class="col-area"><span class="badge bg-light text-muted border px-2.5 py-1.5" style="font-size: 0.78rem; border-radius: 8px;">${esc(s.area_name)}</span></td>
+            <td class="text-muted fw-semibold col-company">${esc(s.company_name)}</td>
+            <td class="fw-medium col-type">${esc(s.contract_type)}</td>
+            <td class="fw-medium col-ownership">${esc(s.ownership_status)}</td>
+            <td class="col-gov"><span class="badge px-2.5 py-1.25" style="border-radius: 6px; font-size: 0.75rem; ${govBadgeStyle}">${s.is_gov ? 'Yes' : 'No'}</span></td>
+            <td class="col-vat-rated"><span class="badge px-2.5 py-1.25" style="border-radius: 6px; font-size: 0.75rem; ${vatBadgeStyle}">${s.is_vat_rated ? 'Yes' : 'No'}</span></td>
+            <td class="text-center col-payment-status"><span class="badge rounded-pill px-3 py-1.5 fw-bold position-relative d-inline-flex align-items-center ${statusClass}" style="font-size: 0.78rem;">${esc(s.payment_status)}</span></td>
+            <td class="text-muted col-payment-date">${esc(s.payment_date)}</td>
+            <td class="col-ura"><span class="ura-pill text-white ${uraStatusClass}">${esc(s.ura_status)}</span>${uraRiskIcon}</td>
+            <td class="text-muted fw-bold col-tax-period" style="font-size: 0.82rem;">${esc(s.tax_period)}</td>
+            <td class="text-end fw-bold text-dark col-total amount-col">${fmtNum(s.total)}</td>
+            <td class="text-end text-muted fw-semibold col-investment amount-col">${fmtNum(s.investment_amount)}</td>
+            <td class="text-end text-info fw-bold col-vat amount-col">${fmtNum(s.vat)}</td>
+            <td class="text-end text-success fw-extrabold col-net amount-col" style="background: rgba(16, 185, 129, 0.02) !important;">${fmtNum(s.net_payable)}</td>
+            <td class="text-end text-emerald fw-black col-profit amount-col" style="background: rgba(4, 120, 87, 0.02) !important;">${fmtNum(s.profit)}</td>
+            ${actionsCol}
+        </tr>`;
+    }
+
+    // ── Data Fetcher ──
+    const SKELETON_HTML = `<tr><td colspan="22" class="text-center py-5">
+        <div class="d-flex flex-column align-items-center gap-3">
+            <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem; border-width: 3px;"><span class="visually-hidden">Loading...</span></div>
+            <span class="text-muted fw-semibold" style="font-size: 0.9rem;">Loading registry data…</span>
+        </div>
+    </td></tr>`;
+
+    async function fetchPage(page, append, restoreScrollTop) {
+        if (isLoading) return;
+        isLoading = true;
+
+        const params = getFilterParams();
+        params.set('page', page);
+        params.set('per_page', PER_PAGE);
+
+        const tbody = document.getElementById('registryBody');
+        const loadMoreSection = document.getElementById('loadMoreSection');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        const loadMoreSpinner = document.getElementById('loadMoreSpinner');
+        const allLoadedMsg = document.getElementById('allLoadedMsg');
+
+        if (!append) {
+            // Show skeleton for fresh load
+            tbody.innerHTML = SKELETON_HTML;
+            loadMoreSection?.classList.add('d-none');
+            allLoadedMsg?.classList.add('d-none');
+        } else {
+            loadMoreBtn?.classList.add('d-none');
+            loadMoreSpinner?.classList.remove('d-none');
+        }
+
+        try {
+            const resp = await fetch(`/api/all_entries_data?${params.toString()}`);
+            const data = await resp.json();
+
+            if (!append) {
+                tbody.innerHTML = '';
+                loadedCount = 0;
+            } else {
+                loadMoreSpinner?.classList.add('d-none');
+                loadMoreBtn?.classList.remove('d-none');
+            }
+
+            // Render rows using a proper table wrapper so browser parses <tr> correctly
+            const rowsHTML = data.items.map((item, i) => renderRow(item, loadedCount + i)).join('');
+            const tempTable = document.createElement('table');
+            tempTable.innerHTML = `<tbody>${rowsHTML}</tbody>`;
+            const fragment = document.createDocumentFragment();
+            const tempBody = tempTable.querySelector('tbody');
+            while (tempBody.firstChild) {
+                fragment.appendChild(tempBody.firstChild);
+            }
+            tbody.appendChild(fragment);
+
+            // Restore scroll position if this was a background refresh (not a filter/search reset)
+            if (!append && restoreScrollTop != null && restoreScrollTop > 0) {
+                const scrollContainer = document.querySelector('.table-responsive');
+                if (scrollContainer) {
+                    requestAnimationFrame(() => {
+                        scrollContainer.scrollTop = restoreScrollTop;
+                    });
+                }
+            }
+
+            loadedCount += data.items.length;
+            totalRecords = data.total;
+            hasMore = data.has_more;
+            currentPage = page;
+
+            // Update KPI stats from server-computed aggregates
+            const stats = data.stats;
+            const revEl = document.getElementById('stat_revenue');
+            if (revEl) revEl.innerText = fmtNum(stats.revenue);
+            const profEl = document.getElementById('stat_profit');
+            if (profEl) profEl.innerText = fmtNum(stats.profit);
+            const collEl = document.getElementById('stat_collected');
+            if (collEl) collEl.innerText = fmtNum(stats.collected);
+            const outEl = document.getElementById('stat_outstanding');
+            if (outEl) outEl.innerText = fmtNum(stats.outstanding);
+
+            // Update load more UI
+            if (hasMore) {
+                loadMoreSection?.classList.remove('d-none');
+                allLoadedMsg?.classList.add('d-none');
+                const remaining = totalRecords - loadedCount;
+                const countEl = document.getElementById('loadMoreCount');
+                if (countEl) countEl.innerText = `(${remaining} remaining)`;
+            } else {
+                loadMoreSection?.classList.add('d-none');
+                if (loadedCount > 0) {
+                    allLoadedMsg?.classList.remove('d-none');
+                    const totalEl = document.getElementById('totalLoadedCount');
+                    if (totalEl) totalEl.innerText = loadedCount;
+                }
+            }
+
+            // Populate dynamic filter dropdowns from first batch
+            if (!append) {
+                initDynamicFiltersFromData(data.items);
+            } else {
+                updateDynamicFiltersFromData(data.items);
+            }
+
+            // Show empty state if no records found
+            if (loadedCount === 0) {
+                tbody.innerHTML = `<tr><td colspan="22" class="text-center py-5">
+                    <div class="d-flex flex-column align-items-center gap-2">
+                        <i class="bi bi-inbox text-muted" style="font-size: 2.5rem; opacity: 0.4;"></i>
+                        <span class="text-muted fw-semibold" style="font-size: 0.9rem;">No entries found matching your filters</span>
+                    </div>
+                </td></tr>`;
+            }
+
+        } catch (err) {
+            console.error('Failed to fetch entries:', err);
+            if (!append) {
+                tbody.innerHTML = `<tr><td colspan="22" class="text-center py-5 text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Failed to load data. Please refresh.
+                </td></tr>`;
+            }
+            loadMoreSpinner?.classList.add('d-none');
+            loadMoreBtn?.classList.remove('d-none');
+        }
+
+        isLoading = false;
+    }
+
+    window.loadNextPage = function() {
+        if (hasMore && !isLoading) {
+            fetchPage(currentPage + 1, true);
+        }
+    };
+
+    // ── Dynamic Filter Dropdowns ──
+    const knownContractTypes = new Set();
+    const knownOwnershipStatuses = new Set();
+
+    function initDynamicFiltersFromData(items) {
+        knownContractTypes.clear();
+        knownOwnershipStatuses.clear();
+        updateDynamicFiltersFromData(items);
+    }
+
+    function updateDynamicFiltersFromData(items) {
+        let changed = false;
+        items.forEach(item => {
+            if (item.contract_type && !knownContractTypes.has(item.contract_type)) {
+                knownContractTypes.add(item.contract_type);
+                changed = true;
+            }
+            if (item.ownership_status && !knownOwnershipStatuses.has(item.ownership_status)) {
+                knownOwnershipStatuses.add(item.ownership_status);
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            const typeSelect = document.getElementById('filter_contract_type');
+            if (typeSelect) {
+                const currentVal = typeSelect.value;
+                typeSelect.innerHTML = '<option value="">Type: All</option>';
+                [...knownContractTypes].sort().forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t; opt.innerText = t;
+                    typeSelect.appendChild(opt);
+                });
+                typeSelect.value = currentVal;
+            }
+
+            const ownSelect = document.getElementById('filter_ownership_status');
+            if (ownSelect) {
+                const currentVal = ownSelect.value;
+                ownSelect.innerHTML = '<option value="">Ownership: All</option>';
+                [...knownOwnershipStatuses].sort().forEach(o => {
+                    const opt = document.createElement('option');
+                    opt.value = o; opt.innerText = o;
+                    ownSelect.appendChild(opt);
+                });
+                ownSelect.value = currentVal;
+            }
+        }
+    }
+
+    // ── Filter Chips UI ──
+    window.handleFilterChange = function(el) {
+        if (el.value.trim() !== '') el.classList.add('active');
+        else el.classList.remove('active');
+        updateClearAllButton();
+    };
+
+    window.clearFilterChip = function(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = '';
+            el.classList.remove('active');
+            applyFilters();
+            updateClearAllButton();
+        }
+    };
+
+    function updateClearAllButton() {
+        const activeChips = document.querySelectorAll('.filter-chip.active').length;
+        const btn = document.getElementById('resetAllFiltersBtn');
+        if (btn) {
+            if (activeChips > 0) btn.classList.remove('d-none');
+            else btn.classList.add('d-none');
+        }
+    }
+
+    window.resetAdvancedFilters = function() {
+        ['filter_client', 'filter_area', 'filter_payment',
+         'filter_contract_type', 'filter_ownership_status', 'filter_ura_status',
+         'filter_start_date', 'filter_end_date',
+         'filter_min_amount', 'filter_max_amount'
+        ].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.value = ''; el.classList.remove('active'); }
+        });
+        updateClearAllButton();
+        document.getElementById('registrySearch').value = '';
+        const clearBtn = document.getElementById('clearSearchBtn');
+        if (clearBtn) clearBtn.classList.add('d-none');
+        applyFilters();
+    };
+
+    // ── Apply Filters (server-side via API) ──
+    function applyFilters() {
+        clearTimeout(filterDebounceTimer);
+        filterDebounceTimer = setTimeout(() => {
+            currentPage = 0;
+            hasMore = true;
+            loadedCount = 0;
+            fetchPage(1, false);
+        }, 80);
+    }
+
+    window.applyFilters = applyFilters;
+    window.refreshRegistry = function() {
+        // Capture scroll position before re-render so we can restore it after
+        const scrollContainer = document.querySelector('.table-responsive');
+        const savedScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+        currentPage = 0;
+        hasMore = true;
+        loadedCount = 0;
+        fetchPage(1, false, savedScrollTop);
+    };
+
+    // ── Infinite Scroll ──
+    function setupInfiniteScroll() {
+        const scrollContainer = document.querySelector('.table-responsive');
+        if (!scrollContainer) return;
+
+        scrollContainer.addEventListener('scroll', function() {
+            if (isLoading || !hasMore) return;
+            const { scrollTop, scrollHeight, clientHeight } = this;
+            // Load more when within 200px of bottom
+            if (scrollHeight - scrollTop - clientHeight < 200) {
+                loadNextPage();
+            }
+        });
+    }
+
+    // ── Init ──
+    document.addEventListener('DOMContentLoaded', function() {
+        const regSearch = document.getElementById('registrySearch');
+        const clearBtn = document.getElementById('clearSearchBtn');
+
+        setupInfiniteScroll();
+
+        // Auto-apply URL params (e.g. dashboard deep-links like ?ura_status=UNPAID)
+        const urlParams = new URLSearchParams(window.location.search);
+        const uraParam = urlParams.get('ura_status');
+        if (uraParam) {
+            const uraFilter = document.getElementById('filter_ura_status');
+            if (uraFilter) { uraFilter.value = uraParam; uraFilter.classList.add('active'); updateClearAllButton(); }
+        }
+
+        // Fast async fetch page 1
+        fetchPage(1, false);
+
+        if (regSearch && clearBtn) {
+            let searchDebounce;
+            regSearch.addEventListener('input', function() {
+                const q = this.value.trim();
+                if (q.length > 0) clearBtn.classList.remove('d-none');
+                else clearBtn.classList.add('d-none');
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(() => applyFilters(), 300);
+            });
+
+            clearBtn.addEventListener('click', function() {
+                regSearch.value = '';
+                clearBtn.classList.add('d-none');
+                applyFilters();
+                regSearch.focus();
+            });
+        }
+
+        // Single click/tap toggle for filters
+        const filterHeader = document.getElementById('allEntriesFilterHeader');
+        if (filterHeader) {
+            const toggleFilters = () => {
+                const collapseContainer = document.getElementById('filterChipsCollapse');
+                const chevron = document.getElementById('allEntriesFilterChevron');
+                if (collapseContainer && chevron) {
+                    if (!collapseContainer.classList.contains('show')) {
+                        collapseContainer.classList.add('show');
+                        chevron.style.transform = 'rotate(180deg)';
+                    } else {
+                        collapseContainer.classList.remove('show');
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                }
+            };
+
+            filterHeader.addEventListener('click', toggleFilters);
+        }
+    });
+
+    // ── Export ──
+    window.exportTableToExcel = function() {
+        const params = getFilterParams();
+        if (window.pywebview && window.pywebview.api) {
+            window.pywebview.api.export_sales_xlsx(JSON.stringify(Object.fromEntries(params))).then(s => { if(s) alert("Export successful!"); });
+        } else {
+            window.location.href = `/api/export_sales?${params.toString()}`;
+        }
+    };
+})();
+</script>
+{% endblock %}

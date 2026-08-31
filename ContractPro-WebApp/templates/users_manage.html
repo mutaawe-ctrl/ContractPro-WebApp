@@ -1,0 +1,468 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">User Profiles Manager</h2>
+        {% if profiles_enrolled %}
+        <p class="text-muted mb-0">Create, modify, and manage user accounts, assign roles, and upload profile pictures.</p>
+        {% else %}
+        <p class="text-muted mb-0">Secure your database with custom credentials, passwords, and standard user restricted permissions.</p>
+        {% endif %}
+    </div>
+    {% if profiles_enrolled and session.get('is_admin') %}
+    <div class="d-flex gap-2 align-items-center">
+        <button class="btn fw-bold px-3 py-2 shadow-sm" style="border-radius: 10px; font-size: 0.82rem; width: 180px; white-space: nowrap; background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1.5px solid rgba(59, 130, 246, 0.2); transition: all 0.2s;" data-bs-toggle="modal" data-bs-target="#addUserModal" onmouseover="this.style.background='rgba(59, 130, 246, 0.25)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='rgba(59, 130, 246, 0.12)'; this.style.transform='none';">
+            <i class="bi bi-person-plus-fill me-2"></i> Add User
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+{% set bg_accents = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.12)', 'rgba(245, 158, 11, 0.12)', 'rgba(139, 92, 246, 0.12)', 'rgba(244, 63, 94, 0.12)', 'rgba(71, 85, 105, 0.12)'] %}
+{% set text_accents = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#e11d48', '#475569'] %}
+
+{% if not profiles_enrolled %}
+<!-- BEAUTIFUL, GLASSMORPHIC ENROLLMENT CTA -->
+<div class="row g-4 justify-content-center animate__animated animate__fadeInUp">
+    <div class="col-xl-9">
+        <div class="card border-0 p-5 shadow-lg position-relative overflow-hidden" 
+             style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98)) !important; border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: white;">
+            
+            <!-- Dynamic ambient background light circles -->
+            <div class="position-absolute" style="top: -10%; right: -10%; width: 350px; height: 350px; background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%); pointer-events: none; filter: blur(50px);"></div>
+            <div class="position-absolute" style="bottom: -15%; left: -10%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%); pointer-events: none; filter: blur(40px);"></div>
+            
+            <div class="row align-items-center g-5 position-relative" style="z-index: 1;">
+                <div class="col-lg-6">
+                    <h3 class="fw-bold mb-3 fs-2 text-white" style="letter-spacing: -0.02em; line-height: 1.25;">Enroll in User Profiles</h3>
+                    <p class="text-white text-opacity-75 mb-4" style="font-size: 0.95rem; line-height: 1.6;">
+                        Activate the security subsystem in this database file. Enrolling in user profiles enables complete multi-user support with custom administrator and standard access scopes.
+                    </p>
+                    
+                    <div class="d-flex flex-column gap-3">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white bg-opacity-10 text-primary" style="width: 36px; height: 36px; flex-shrink:0;">
+                                <i class="bi bi-shield-lock-fill"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-white">Secure Database Access</h6>
+                                <p class="small text-white text-opacity-50 mb-0">Set master passwords or PINs to restrict database access to verified members only.</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white bg-opacity-10 text-success" style="width: 36px; height: 36px; flex-shrink:0;">
+                                <i class="bi bi-key-fill"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-white">Granular Page Permissions</h6>
+                                <p class="small text-white text-opacity-50 mb-0">Define specific read/write access per page (e.g. block users from settings or deletion).</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white bg-opacity-10 text-info" style="width: 36px; height: 36px; flex-shrink:0;">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-white">Multi-User Personalization</h6>
+                                <p class="small text-white text-opacity-50 mb-0">Each member gets their own customized profile picture, username and avatar display.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card border-0 p-4 shadow-sm" style="background: rgba(15, 23, 42, 0.5) !important; backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.05) !important;">
+                        <h5 class="fw-bold mb-4 text-white border-bottom pb-2 border-secondary border-opacity-25">
+                            <i class="bi bi-person-badge-fill me-2 text-primary"></i>Setup Administrator Profile
+                        </h5>
+                        <form action="{{ url_for('enroll_profiles') }}" method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label text-white text-opacity-75 small fw-bold">Admin Username</label>
+                                <input type="text" name="admin_name" class="form-control text-white border-secondary border-opacity-25" 
+                                       style="background: #0f172a;" value="Admin" required placeholder="e.g. Master Admin">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-white text-opacity-75 small fw-bold">Password / PIN (Recommended)</label>
+                                <input type="password" name="admin_password" id="enrollPassword" class="form-control text-white border-secondary border-opacity-25" 
+                                       style="background: #0f172a;" placeholder="Secure your admin account" oninput="updateStrength('enrollStrengthBar', this.value)">
+                                <div class="mt-2">
+                                    <div style="height: 4px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden;">
+                                        <div id="enrollStrengthBar" style="height: 100%; width: 0%; transition: width 0.35s ease, background 0.35s ease; border-radius: 2px;"></div>
+                                    </div>
+                                    <div id="enrollStrengthLabel" class="text-white text-opacity-40 small mt-1" style="font-size: 0.7rem;"></div>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label text-white text-opacity-75 small fw-bold">Profile Picture</label>
+                                <input type="file" name="admin_profile_picture" accept="image/*" class="form-control text-white border-secondary border-opacity-25" 
+                                       style="background: #0f172a;">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold py-3 shadow border-0" 
+                                    style="border-radius: 12px; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+                                <i class="bi bi-shield-fill-plus me-2"></i> Enable User Profiles
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row g-4">
+    {% for u in users %}
+    {% set color_idx = loop.index0 % 6 %}
+    <div class="col-md-4">
+        <div class="card h-100 hover-card shadow-sm animate__animated animate__fadeInUp" 
+             style="animation-delay: {{ loop.index0 * 0.05 }}s; border: none !important; background: {{ bg_accents[color_idx] }} !important; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px;">
+            <div class="card-body text-center p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge bg-white shadow-sm fw-bold" style="font-size: 0.7rem; padding: 6px 12px; color: {{ text_accents[color_idx] }}; border-radius: 8px;">
+                            {% if u.is_admin %}ADMIN{% else %}STANDARD{% endif %}
+                        </span>
+                        {% if session.get('is_admin') %}
+                        <div class="dropdown">
+                            <button class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: 12px;">
+                                <li>
+                                    <a class="dropdown-item small fw-bold" 
+                                       href="javascript:void(0)" 
+                                       onclick="openEditModal({{ u.id }}, '{{ u.name|replace("'","\\'")|e }}', {{ u.is_admin }}, {{ u.biometrics_enabled }})">
+                                       <i class="bi bi-pencil me-2" style="color: {{ text_accents[color_idx] }};"></i> Edit Details
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3 mx-auto" style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 4px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.08); background: #ffffff;">
+                        <img src="{{ url_for('get_user_avatar', user_id=u.id) }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    
+                    <h5 class="fw-bold mb-2 text-dark" title="{{ u.name }}" style="font-size: 1.4rem; line-height: 1.2; letter-spacing: -0.02em;">{{ u.name }}</h5>
+                    <p class="small fw-medium mb-3" style="color: rgba(30, 41, 59, 0.7); min-height: 2.4em;">
+                        <i class="bi bi-shield-check me-1" style="color: {{ text_accents[color_idx] }};"></i> 
+                        {% if u.is_admin %}System Administrator{% else %}Standard User Profile{% endif %}
+                    </p>
+                    {% if u.has_password %}
+                    <span class="badge mb-3" style="background: rgba(16,185,129,0.15); color: #059669; border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; font-size: 0.7rem; padding: 5px 10px;">
+                        <i class="bi bi-lock-fill me-1"></i> Password Protected
+                    </span>
+                    {% else %}
+                    <span class="badge mb-3" style="background: rgba(245,158,11,0.12); color: #d97706; border: 1px solid rgba(245,158,11,0.25); border-radius: 8px; font-size: 0.7rem; padding: 5px 10px;">
+                        <i class="bi bi-unlock me-1"></i> No Password Set
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="d-grid gap-2">
+                    {% if not u.is_admin %}
+                    <button onclick="openPermissionsModal({{ u.id }}, '{{ u.name|replace("'","\\'")|e }}', this)" data-perms='{{ u.perms|tojson }}' class="btn fw-bold py-2 shadow-sm border-0" style="background: rgba(99,102,241,0.12); color: #6366f1; border: 1px solid rgba(99,102,241,0.2); border-radius: 12px;">
+                        <i class="bi bi-key-fill me-2"></i> Permissions
+                    </button>
+                    {% else %}
+                    <div class="py-2 text-center small fw-bold" style="color: #10b981; background: rgba(16,185,129,0.08); border-radius: 12px; border: 1px solid rgba(16,185,129,0.15);">
+                        <i class="bi bi-infinity me-1"></i> Full Access (Admin)
+                    </div>
+                    {% endif %}
+                    {% if u.id != session.get('user_id') %}
+                    <form action="{{ url_for('delete_user', user_id=u.id) }}" method="POST" onsubmit="const form = this; secureAction(event, 'Authenticate to permanently delete this user profile.', () => form.submit()); return false;" class="d-grid">
+                        <button type="submit" class="btn fw-bold py-2 shadow-sm border-0" style="background: {{ text_accents[color_idx] }}; color: white; border-radius: 12px;">
+                            <i class="bi bi-trash me-2"></i> Delete Profile
+                        </button>
+                    </form>
+                    {% else %}
+                    <button class="btn fw-bold py-2 shadow-sm border-0" style="background: {{ text_accents[color_idx] }}; color: white; border-radius: 12px; opacity: 0.5; cursor: not-allowed;" disabled title="Active profile cannot be deleted">
+                        <i class="bi bi-trash me-2"></i> Active Profile
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ADD USER MODAL -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Create User Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_user') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required placeholder="Enter full name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Password / PIN</label>
+                        <input type="password" name="password" id="addUserPassword" class="form-control" 
+                               placeholder="Enter password (optional)" oninput="updateStrength('addStrengthBar', this.value)">
+                        <div class="mt-2">
+                            <div style="height: 4px; border-radius: 2px; background: rgba(0,0,0,0.08); overflow: hidden;">
+                                <div id="addStrengthBar" style="height: 100%; width: 0%; transition: width 0.35s ease, background 0.35s ease; border-radius: 2px;"></div>
+                            </div>
+                            <div id="addStrengthLabel" class="text-muted small mt-1" style="font-size: 0.7rem; font-weight: 600;"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Profile Picture</label>
+                        <input type="file" name="profile_picture" accept="image/*" class="form-control">
+                        <div class="form-text text-muted small mt-1">Upload a clear photo to store directly in the database.</div>
+                    </div>
+                    <div class="form-check form-switch mb-2 pt-2">
+                        <input class="form-check-input" type="checkbox" name="is_admin" value="1" id="addAdminSwitch">
+                        <label class="form-check-label small fw-bold text-dark" for="addAdminSwitch">Grant Administrative Access</label>
+                        <div class="text-muted small mt-1">Administrators can add, edit, and delete database records. Standard users have read-only access.</div>
+                    </div>
+                    <div class="form-check form-switch mb-2 pt-2">
+                        <input class="form-check-input" type="checkbox" name="biometrics_enabled" value="1" id="addBiometricsSwitch" {% if not biometrics_available %}disabled{% endif %}>
+                        <label class="form-check-label small fw-bold text-dark" for="addBiometricsSwitch">Enable Device Biometric Authentication</label>
+                        {% if biometrics_available %}
+                        <div class="text-muted small mt-1">Allows this user to log in automatically using macOS Touch ID or device passcode.</div>
+                        {% else %}
+                        <div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Touch ID / Passcode is not supported or not configured on this Mac.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">Create Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark"><i class="bi bi-pencil-square me-2 text-info"></i>Edit User Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('edit_user') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="id" id="editUserId">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="editUserName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Update Password / PIN</label>
+                        <input type="password" name="password" id="editUserPassword" class="form-control" 
+                               placeholder="Leave blank to keep current password" oninput="updateStrength('editStrengthBar', this.value)">
+                        <div class="mt-2">
+                            <div style="height: 4px; border-radius: 2px; background: rgba(0,0,0,0.08); overflow: hidden;">
+                                <div id="editStrengthBar" style="height: 100%; width: 0%; transition: width 0.35s ease, background 0.35s ease; border-radius: 2px;"></div>
+                            </div>
+                            <div id="editStrengthLabel" class="text-muted small mt-1" style="font-size: 0.7rem; font-weight: 600;"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-dark">Update Profile Picture</label>
+                        <input type="file" name="profile_picture" accept="image/*" class="form-control">
+                        <div class="form-text text-muted small mt-1">Leave blank to keep current profile picture.</div>
+                    </div>
+                    <div class="form-check form-switch mb-2 pt-2" id="editAdminSwitchContainer">
+                        <input class="form-check-input" type="checkbox" name="is_admin" value="1" id="editUserAdmin">
+                        <label class="form-check-label small fw-bold text-dark" for="editUserAdmin">Grant Administrative Access</label>
+                        <div class="text-muted small mt-1">Standard users are blocked from adding, editing, or deleting database assets.</div>
+                    </div>
+                    <div class="form-check form-switch mb-2 pt-2" id="editBiometricsSwitchContainer">
+                        <input class="form-check-input" type="checkbox" name="biometrics_enabled" value="1" id="editUserBiometrics" {% if not biometrics_available %}disabled{% endif %}>
+                        <label class="form-check-label small fw-bold text-dark" for="editUserBiometrics">Enable Device Biometric Authentication</label>
+                        {% if biometrics_available %}
+                        <div class="text-muted small mt-1">Allows login using macOS Touch ID or device passcode.</div>
+                        {% else %}
+                        <div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle-fill me-1"></i> Touch ID / Passcode is not supported or not configured on this Mac.</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info text-white fw-bold px-4" style="border-radius: 8px;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const addModal = document.getElementById('addUserModal');
+        const editModal = document.getElementById('editUserModal');
+        const permModal = document.getElementById('permissionsModal');
+        if (addModal) document.body.appendChild(addModal);
+        if (editModal) document.body.appendChild(editModal);
+        if (permModal) document.body.appendChild(permModal);
+    });
+
+    function openEditModal(id, name, isAdmin, biometricsEnabled) {
+        document.getElementById('editUserId').value = id;
+        document.getElementById('editUserName').value = name;
+        document.getElementById('editUserAdmin').checked = isAdmin === 1;
+        
+        const editBio = document.getElementById('editUserBiometrics');
+        if (editBio) {
+            editBio.checked = biometricsEnabled === 1;
+        }
+        
+        // Reset password strength bar
+        updateStrength('editStrengthBar', '');
+        document.getElementById('editUserPassword').value = '';
+        
+        // Prevent editing own role if the user is the currently logged in administrator
+        const activeUserId = {{ session.get('user_id') or 'null' }};
+        const switchContainer = document.getElementById('editAdminSwitchContainer');
+        if (id === activeUserId) {
+            document.getElementById('editUserAdmin').disabled = true;
+            switchContainer.setAttribute('title', 'You cannot revoke your own administrative status while active.');
+        } else {
+            document.getElementById('editUserAdmin').disabled = false;
+            switchContainer.removeAttribute('title');
+        }
+        
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editUserModal')).show();
+    }
+
+    /**
+     * Live password strength meter.
+     * barId: id of the progress div to update.
+     * password: the current input value.
+     */
+    function updateStrength(barId, password) {
+        const bar = document.getElementById(barId);
+        const labelId = barId.replace('Bar', 'Label');
+        const label = document.getElementById(labelId);
+        if (!bar) return;
+
+        if (!password) {
+            bar.style.width = '0%';
+            bar.style.background = 'transparent';
+            if (label) label.textContent = '';
+            return;
+        }
+
+        let score = 0;
+        if (password.length >= 6) score++;
+        if (password.length >= 10) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+
+        const levels = [
+            { pct: '20%', color: '#ef4444', text: 'Very Weak' },
+            { pct: '40%', color: '#f97316', text: 'Weak' },
+            { pct: '60%', color: '#eab308', text: 'Fair' },
+            { pct: '80%', color: '#22c55e', text: 'Strong' },
+            { pct: '100%', color: '#10b981', text: 'Very Strong' },
+        ];
+        const level = levels[Math.min(score, 4)];
+        bar.style.width = level.pct;
+        bar.style.background = level.color;
+        if (label) {
+            label.textContent = level.text;
+            label.style.color = level.color;
+            label.style.opacity = '1';
+        }
+    }
+</script>
+
+<!-- PERMISSIONS MODAL -->
+<div class="modal fade" id="permissionsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 520px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="bi bi-key-fill me-2 text-primary"></i>
+                    Page Access — <span id="permModalUserName" class="text-dark"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('save_permissions') }}" method="POST">
+                <input type="hidden" name="user_id" id="permUserId">
+                <div class="modal-body p-4">
+                    <p class="small text-muted mb-4">
+                        Toggle which sections this user can access. Admins always have full access regardless of these settings.
+                    </p>
+                    <div class="row g-2" id="permTogglesContainer">
+                        {% set PAGES = [
+                            ('reports',     'bi-bar-chart-line-fill', 'Reports & Demand Notes', '#3b82f6'),
+                            ('all_entries', 'bi-table',               'All Entries Registry',    '#8b5cf6'),
+                            ('demands',     'bi-receipt-cutoff',      'Sales Management Suite',  '#06b6d4'),
+                            ('clients',     'bi-people-fill',         'Clients',                 '#10b981'),
+                            ('areas',       'bi-geo-alt-fill',        'Supply Areas',            '#f59e0b'),
+                            ('analytics',   'bi-graph-up-arrow',      'Analytics',               '#ec4899'),
+                            ('settings',    'bi-gear-fill',           'Settings',                '#64748b'),
+                            ('users',       'bi-person-gear',         'User Management',         '#ef4444'),
+                        ] %}
+                        {% for key, icon, label, color in PAGES %}
+                        <div class="col-12">
+                            <label class="d-flex align-items-center justify-content-between px-3 py-2 rounded-3 w-100"
+                                   style="background: #f8fafc; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.2s; min-height: 52px; height: auto;"
+                                   onmouseover="this.style.background='#f1f5f9'"
+                                   onmouseout="this.style.background='#f8fafc'">
+                                <div class="d-flex align-items-center gap-3">
+                                    <i class="bi {{ icon }} fs-5" style="color: {{ color }}; width: 24px; text-align: center; flex-shrink: 0;"></i>
+                                    <span class="fw-semibold text-dark" style="font-size: 0.85rem;">{{ label }}</span>
+                                </div>
+                                <div class="form-check form-switch mb-0 flex-shrink-0" style="padding-left: 0;">
+                                    <input class="form-check-input perm-toggle" type="checkbox" role="switch"
+                                           name="perm_{{ key }}" value="1"
+                                           id="perm_{{ key }}" style="cursor: pointer; margin-left: 0; float: none;">
+                                </div>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4 pt-0 d-flex gap-3 justify-content-between">
+                    <button type="button" class="btn btn-light fw-bold py-2.5 flex-grow-1" data-bs-dismiss="modal"
+                            style="border-radius: 10px; flex: 1;">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold py-2.5 flex-grow-1"
+                            style="border-radius: 10px; flex: 1;">
+                        <i class="bi bi-floppy-fill me-2"></i>Save Permissions
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openPermissionsModal(userId, userName, buttonEl) {
+        document.getElementById('permUserId').value = userId;
+        document.getElementById('permModalUserName').textContent = userName;
+
+        let currentPerms = {};
+        try {
+            currentPerms = JSON.parse(buttonEl.getAttribute('data-perms') || '{}');
+        } catch (e) {
+            console.error("Error parsing user permissions JSON: ", e);
+        }
+
+        // Set each toggle based on stored permissions.
+        // Default: if key is missing from perms object → grant access (true).
+        const KEYS = ['reports', 'all_entries', 'demands', 'clients', 'areas', 'analytics', 'settings', 'users'];
+        KEYS.forEach(k => {
+            const cb = document.getElementById('perm_' + k);
+            if (cb) {
+                // undefined (not set) => true (allowed); explicit false => unchecked
+                cb.checked = currentPerms[k] !== false;
+            }
+        });
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('permissionsModal')).show();
+    }
+</script>
+{% endblock %}
+
+

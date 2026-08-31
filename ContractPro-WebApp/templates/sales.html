@@ -1,0 +1,264 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-10">
+        <form action="{{ url_for('update_sale') if is_edit else url_for('add_sale') }}" method="POST">
+            <input type="hidden" name="current_url" value="{{ request.path }}">
+            <input type="hidden" name="action" id="main_action" value="save_exit">
+            {% if is_edit %}<input type="hidden" name="id" value="{{ sale.id }}">{% endif %}
+            
+            <div class="card p-4 border-0 shadow-sm mb-4 bg-white" style="border: 1px solid #e2e8f0 !important;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="fw-bold mb-1">{{ 'Edit' if is_edit else 'New' }} Entry Form</h4>
+                        <p class="text-muted mb-0 small">{{ 'Update the contract details, financials, and tax compliance information.' if is_edit else 'Enter the details for a new contract or sale record.' }}</p>
+                    </div>
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <a href="{{ url_for('demands') }}" class="btn btn-outline-danger fw-bold">Cancel</a>
+                    <div class="d-flex gap-2">
+                        {% if not is_edit %}
+                        <button type="submit" onclick="document.getElementById('main_action').value='save_new'" class="btn btn-primary fw-bold shadow-sm">
+                            <i class="bi bi-plus-circle me-2"></i> Save & New
+                        </button>
+                        {% endif %}
+                        <button type="submit" id="main-save-btn" onclick="document.getElementById('main_action').value='save_exit'" class="btn btn-success fw-bold shadow-sm">
+                            <i class="bi bi-check-circle me-2"></i> Save & Exit
+                        </button>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-4 border-bottom pb-3">1. Core Identification & Details</h5>
+                
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Entry ID</label>
+                        <input type="text" name="entry_id" class="form-control bg-light fw-bold text-primary border-0" value="{{ sale.entry_id if is_edit else next_id }}" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Invoice No.</label>
+                        <input type="text" name="invoice" class="form-control" placeholder="INV-001" value="{{ sale.invoice_code or '' if is_edit else '' }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Contract No.</label>
+                        <input type="text" name="contract_no" class="form-control" placeholder="CONT-123" value="{{ sale.contract_no or '' if is_edit else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">PO No.</label>
+                        <input type="text" name="po_no" class="form-control" placeholder="PO-456" value="{{ sale.po_no or '' if is_edit else '' }}">
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Full Details of Contract</label>
+                        <input type="text" name="contract_details" class="form-control" placeholder="Describe the supply or service rendered..." value="{{ sale.contract_details or '' if is_edit else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Completion Date</label>
+                        <input type="date" name="completion_date" class="form-control" value="{{ sale.completion_date|form_date if is_edit else '' }}" required>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label class="form-label">Target Client</label>
+                        <select name="client_id" class="form-select" required>
+                            <option value="">Select Client...</option>
+                            {% for c in clients %}<option value="{{ c.id }}" {% if is_edit and sale.client_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Area of Supply</label>
+                        <select name="area_id" class="form-select" required>
+                            <option value="">Select Area...</option>
+                            {% for a in areas %}<option value="{{ a.id }}" {% if is_edit and sale.area_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Supplying Company</label>
+                        <select name="company_name" class="form-select" required>
+                            {% for c in opts.company_names %}<option value="{{ c }}" {% if is_edit and sale.company_name == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4 mb-4">
+                <h5 class="fw-bold mb-4 border-bottom pb-3">2. Compliance & Status</h5>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Contract Type</label>
+                        <select name="contract_type" class="form-select">
+                            {% for t in opts.contract_types %}<option {% if is_edit and sale.contract_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Ownership Status</label>
+                        <select name="ownership_status" class="form-select">
+                            {% for o in opts.ownership_statuses %}<option value="{{ o }}" {% if is_edit and sale.ownership_status == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Government?</label>
+                        <select id="is_gov" name="is_gov" class="form-select"><option value="1" {% if is_edit and sale.is_gov %}selected{% endif %}>Yes</option><option value="0" {% if is_edit and not sale.is_gov %}selected{% endif %}>No</option></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">VAT Rated?</label>
+                        <select id="is_vat" name="is_vat" class="form-select"><option value="1" {% if is_edit and sale.is_vat_rated %}selected{% endif %}>Yes</option><option value="0" {% if is_edit and not sale.is_vat_rated %}selected{% endif %}>No</option></select>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label class="form-label">Payment Status</label>
+                        <select id="pay_status" name="payment_status" class="form-select">
+                            {% for s in opts.payment_statuses %}<option value="{{ s }}" {% if is_edit and sale.payment_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Payment Date</label>
+                        <input type="date" id="pay_date_input" name="payment_date" class="form-control" value="{{ (sale.payment_date|form_date) if is_edit else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">URA Status</label>
+                        <select name="ura_status" class="form-select">
+                            {% for u in opts.ura_statuses %}<option {% if is_edit and sale.ura_status == u %}selected{% endif %}>{{ u }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4">
+                <h5 class="fw-bold mb-4 border-bottom pb-3">3. Financial Calculations</h5>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded bg-primary bg-opacity-10 border border-primary">
+                            <label class="form-label text-primary">Total Contract Amount (UGX)</label>
+                            <input type="text" id="amount" name="amount" class="form-control form-control-lg border-primary" value="{{ sale.total|no_decimal if is_edit else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded bg-danger bg-opacity-10">
+                            <label class="form-label text-danger">Total Investment / Expenses (UGX)</label>
+                            <input type="text" id="investment" name="investment" class="form-control form-control-lg" value="{{ sale.investment_amount|no_decimal if is_edit else '' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col"><div class="calc-box"><div class="calc-label">VAT (18%)</div><div class="calc-value" id="v">0</div></div></div>
+                    <div class="col"><div class="calc-box"><div class="calc-label">Net Amount</div><div class="calc-value" id="n">0</div></div></div>
+                    <div class="col"><div class="calc-box"><div class="calc-label">WHT (6%)</div><div class="calc-value text-danger" id="w">0</div></div></div>
+                    <div class="col"><div class="calc-box bg-primary bg-opacity-10 border-0"><div class="calc-label text-primary">Net Payable</div><div class="calc-value" id="p">0</div></div></div>
+                    <div class="col"><div class="calc-box bg-success bg-opacity-10 border-0"><div class="calc-label text-success">Profit</div><div class="calc-value" id="pr">0</div></div></div>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+<script>
+    const a = document.getElementById('amount'), i = document.getElementById('investment'), vS = document.getElementById('is_vat'), gS = document.getElementById('is_gov'), pS = document.getElementById('pay_status'), pD_input = document.getElementById('pay_date_input');
+    
+    function formatVal(v) { return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+    function parseVal(v) { return parseFloat(v.toString().replace(/,/g, '')) || 0; }
+
+    function calc() {
+        const amt = parseVal(a.value), isV = vS.value === "1", isG = gS.value === "1";
+        const vat = isV ? (amt * 18 / 118) : 0;
+        const wht = (isG || isV) ? ((amt - vat) * 0.06) : 0;
+        const net_amount = amt - (vat + wht);
+        const net_payable = amt - (wht * 2);
+        
+        let profit;
+        if (i.value.trim() === "") {
+            profit = 0.5 * net_amount;
+        } else {
+            const inv = parseVal(i.value);
+            profit = net_amount - inv;
+        }
+
+        document.getElementById('v').innerText = Math.round(vat).toLocaleString();
+        document.getElementById('n').innerText = Math.round(net_amount).toLocaleString();
+        document.getElementById('w').innerText = Math.round(wht).toLocaleString();
+        document.getElementById('p').innerText = Math.round(net_payable).toLocaleString();
+        document.getElementById('pr').innerText = Math.round(profit).toLocaleString();
+        
+        if (pS.value === "PAID") {
+            pD_input.parentElement.style.opacity = "1";
+            pD_input.disabled = false;
+        } else {
+            pD_input.parentElement.style.opacity = "0.4";
+            pD_input.disabled = true;
+        }
+    }
+
+    function handleCurrencyInput(e) {
+        let cursor = e.target.selectionStart;
+        let oldLen = e.target.value.length;
+        let raw = e.target.value.replace(/,/g, '');
+        if(!isNaN(raw) && raw !== "") {
+            e.target.value = formatVal(raw);
+            let newLen = e.target.value.length;
+            e.target.setSelectionRange(cursor + (newLen - oldLen), cursor + (newLen - oldLen));
+        }
+        calc();
+    }
+
+    [a, i].forEach(el => el.addEventListener('input', handleCurrencyInput));
+    [vS, gS, pS].forEach(el => el.addEventListener('input', calc));
+    
+    window.onload = function() {
+        if(a.value) a.value = formatVal(a.value);
+        if(i.value) i.value = formatVal(i.value);
+        calc();
+    };
+
+    document.querySelector('form').onsubmit = function(e) {
+        e.preventDefault();
+        const form = this;
+        const actionVal = document.getElementById('main_action').value;
+        
+        // Clean numbers
+        a.value = a.value.replace(/,/g, '');
+        i.value = i.value.replace(/,/g, '');
+        
+        const formData = new FormData(form);
+        formData.append('ajax', '1');
+        formData.append('action', actionVal);
+
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            body: formData
+        }).then(async r => {
+            const rawText = await r.text();
+            console.log('Server response (' + r.status + '):', rawText.substring(0, 500));
+            let data;
+            try {
+                data = JSON.parse(rawText);
+            } catch(e) {
+                alert('Server returned unexpected response (status ' + r.status + '). Check console for details.');
+                return;
+            }
+            if (!data.success) {
+                alert('Save failed: ' + (data.error || 'Unknown error'));
+                return;
+            }
+            if (actionVal === 'save_new') {
+                window.location.reload(); 
+            } else {
+                showToast('Contract changes saved successfully!');
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('demands') }}";
+                }, 1000);
+            }
+        }).catch(err => {
+            console.error("Network error:", err);
+            alert("Network error: " + err.message);
+        });
+    };
+</script>
+{% endblock %}

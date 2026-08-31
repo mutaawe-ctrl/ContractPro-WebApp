@@ -1,0 +1,3586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ system_name }}</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.css') }}">
+    <link href="{{ url_for('static', filename='css/inter.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/flatpickr.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/monthSelect.css') }}" rel="stylesheet">
+    <script src="{{ url_for('static', filename='js/flatpickr.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/monthSelect.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+    <style>
+        :root { 
+            --sidebar-bg: #0f172a; --bg-main: #f8fafc; --accent: #4f46e5; --text-main: #0f172a;
+            --sidebar-width: 280px;
+            
+            /* Premium spring-curve animations */
+            --transition-spring-slow: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.35s ease, border-color 0.35s ease;
+            --transition-spring-fast: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-color 0.2s ease;
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        
+        /* Premium Color Palette & Interactive Overrides */
+        .btn-primary, .btn-modern-primary {
+            background-color: #4f46e5 !important;
+            border-color: #4f46e5 !important;
+            color: #ffffff !important;
+        }
+        .btn-primary:hover, .btn-primary:focus, .btn-modern-primary:hover {
+            background-color: #4338ca !important;
+            border-color: #4338ca !important;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25) !important;
+        }
+        .btn-outline-primary {
+            color: #4f46e5 !important;
+            border-color: #4f46e5 !important;
+        }
+        .btn-outline-primary:hover, .btn-outline-primary:focus {
+            background-color: #4f46e5 !important;
+            border-color: #4f46e5 !important;
+            color: #ffffff !important;
+        }
+        .btn-success, .btn-modern-success {
+            background-color: #10b981 !important;
+            border-color: #10b981 !important;
+            color: #ffffff !important;
+        }
+        .btn-success:hover, .btn-success:focus, .btn-modern-success:hover {
+            background-color: #059669 !important;
+            border-color: #059669 !important;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+        }
+        .btn-outline-secondary {
+            color: #64748b !important;
+            border-color: #cbd5e1 !important;
+        }
+        .btn-outline-secondary:hover {
+            background-color: #f1f5f9 !important;
+            color: #1e293b !important;
+            border-color: #cbd5e1 !important;
+        }
+        
+        /* Micro-interactions: scale down on press */
+        .btn {
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+        .btn:active {
+            transform: scale(0.96) !important;
+        }
+        
+        /* Premium form styling */
+        .form-control, .form-select {
+            transition: all 0.2s ease-in-out !important;
+            border: 1.5px solid #cbd5e1 !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #4f46e5 !important;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
+            background-color: #ffffff !important;
+        }
+        
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); margin: 0; overflow: hidden; height: 100vh; }
+        
+        #app-container { display: flex; height: 100vh; transition: opacity 0.5s ease, transform 0.5s ease; width: 100%; }
+        #app-container.fade-out { opacity: 0; transform: scale(0.98); }
+        
+        .sidebar { 
+            width: var(--sidebar-width); 
+            height: 100vh; 
+            background: var(--sidebar-bg); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px); 
+            color: #94a3b8; 
+            display: flex; 
+            flex-direction: column; 
+            flex-shrink: 0; 
+            overflow-y: auto; 
+            border-right: 1px solid rgba(255,255,255,0.06); 
+            transition: none; 
+            will-change: width; 
+        }
+        .sidebar-ready .sidebar { transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        
+        .sidebar-collapsed-init { --sidebar-width: 72px !important; }
+        .sidebar-collapsed-init .sidebar .sidebar-header .d-flex.flex-column, 
+        .sidebar-collapsed-init .sidebar .sidebar-section, 
+        .sidebar-collapsed-init .sidebar span, 
+        .sidebar-collapsed-init .sidebar .file-context, 
+        .sidebar-collapsed-init .sidebar .search-trigger-box span, 
+        .sidebar-collapsed-init .sidebar .btn-sidebar-action > span { display: none !important; }
+        .sidebar-collapsed-init .sidebar .sidebar-header { padding: 10px !important; height: 60px; }
+        .sidebar-collapsed-init .sidebar .sidebar-toggle { position: static !important; display: flex; justify-content: center; margin: 0; }
+        .sidebar-collapsed-init .sidebar .nav-link { flex-direction: column; gap: 2px; margin: 4px; padding: 12px 4px; justify-content: center; position: relative; }
+        .sidebar-collapsed-init .sidebar .nav-link i { font-size: 1.2rem; margin: 0; }
+        .sidebar-collapsed-init .sidebar .nav-link.active::before { left: 0; top: 0; bottom: 0; width: 4px; height: 100%; border-radius: 0 4px 4px 0; }
+        
+        /* Ultra-fluid Scrollbar for Sidebar */
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; transition: background 0.3s; }
+        .sidebar:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
+        .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+        /* Modal Blur Cascade Effect - Optimized for GPU Hardware Acceleration */
+        .modal {
+            transition: filter 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            will-change: filter;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .modal.modal-parent-blur {
+            filter: blur(4px) !important;
+            pointer-events: none !important;
+        }
+        
+        /* Premium organized scrollbar for Supply Areas list */
+        #modal-areas-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        #modal-areas-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #modal-areas-list::-webkit-scrollbar-thumb {
+            background: rgba(15, 23, 42, 0.15); /* Slate 900 translucent */
+            border-radius: 10px;
+        }
+        #modal-areas-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        
+        .sidebar-brand { padding: 22px 18px 18px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 8px; }
+        .sidebar-logo-wrap { width: 50px; height: 50px; border-radius: 13px; background: linear-gradient(135deg, #2563eb, #0ea5e9); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(14,165,233,0.35); flex-shrink: 0; overflow: hidden; will-change: transform, box-shadow; }
+        .sidebar-logo-wrap img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+        .sidebar-title { font-size: 0.95rem; font-weight: 800; color: #fff; line-height: 1.15; letter-spacing: -0.01em; }
+        .sidebar-title span { color: #38bdf8; }
+        .sidebar-subtitle { font-size: 0.6rem; color: rgba(255,255,255,0.38); letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; margin-top: 3px; }
+        .sidebar-section { padding: 12px 18px 3px; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.22); }
+        
+        .sidebar .nav-link { 
+            transition: background-color 0.2s ease, color 0.15s ease, border-color 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+            border: 1px solid transparent; 
+            color: rgba(255,255,255,0.55); 
+            padding: 9px 14px; 
+            margin: 1px 10px; 
+            border-radius: 10px; 
+            text-decoration: none; 
+            display: flex; 
+            align-items: center; 
+            gap: 11px; 
+            font-size: 0.875rem; 
+            font-weight: 500; 
+            position: relative; 
+        }
+        .sidebar .nav-link:hover { 
+            color: #ffffff; 
+            background: rgba(255,255,255,0.05); 
+            border-color: rgba(255,255,255,0.08); 
+            transform: translateX(4px); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        }
+        .sidebar .nav-link:active { 
+            transform: translateX(2px) scale(0.98); 
+            transition: transform 0.1s; 
+        }
+        .sidebar .nav-link.active { 
+            color: #ffffff !important; 
+            background: rgba(255,255,255,0.08) !important; 
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.1), 0 8px 24px rgba(0,0,0,0.25); 
+            border-color: rgba(255,255,255,0.12) !important; 
+        }
+        .sidebar .nav-link.active::before { 
+            content: ''; 
+            position: absolute; 
+            left: -10px; 
+            top: 0; 
+            bottom: 0; 
+            width: 4px; 
+            background: #ffffff !important; 
+            border-radius: 0 4px 4px 0; 
+            box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.8); 
+            transition: all 0.3s ease; 
+        }
+        .sidebar .nav-link i { 
+            font-size: 1rem; 
+            width: 18px; 
+            text-align: center; 
+            flex-shrink: 0; 
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease; 
+            will-change: transform; 
+        }
+        .sidebar .nav-link:hover i { 
+            transform: scale(1.15); 
+            color: #ffffff !important; 
+        }
+        .sidebar .nav-link.active i {
+            color: #ffffff !important;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+        }
+        .sidebar hr { border-color: rgba(255,255,255,0.05); margin: 5px 14px; }
+        .main-content { flex-grow: 1; height: 100vh; overflow-y: auto; padding: 36px 40px; background: var(--main-bg); scroll-behavior: smooth; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; opacity: 1 !important; }
+        .main-content.page-exit { opacity: 1 !important; }
+        /* Fluid Scrollbar for Main Content */
+        .main-content::-webkit-scrollbar { width: 6px; }
+        .main-content::-webkit-scrollbar-track { background: transparent; }
+        .main-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
+        .main-content:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+        @keyframes fadeIn { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
+        .card { border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: var(--transition-spring-slow); background: #fff; will-change: transform, box-shadow; }
+        .card:hover { transform: translateY(-4px) scale(1.003); box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08), 0 8px 16px -8px rgba(0, 0, 0, 0.04); }
+        .form-label { font-weight: 600; font-size: 0.875rem; color: #475569; }
+        .calc-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; transition: var(--transition-spring-slow); }
+        .calc-box:hover { transform: translateY(-4px) scale(1.005); box-shadow: 0 8px 20px rgba(0,0,0,0.06); }
+        .btn-sidebar-action {
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255,255,255,0.06) !important;
+            background: rgba(255,255,255,0.03) !important;
+            color: rgba(255,255,255,0.65) !important;
+            border-radius: 8px !important;
+        }
+        .btn-sidebar-action:hover {
+            background: rgba(255,255,255,0.08) !important;
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+            color: white !important;
+            border-color: rgba(255,255,255,0.15) !important;
+        }
+        .btn-sidebar-success { border-color: rgba(25,135,84,0.3) !important; color: #4ade80 !important; background: rgba(25,135,84,0.03) !important; }
+        .btn-sidebar-success:hover { background: rgba(25,135,84,0.15) !important; border-color: #4ade80 !important; color: white !important; }
+        .btn-sidebar-danger { border-color: rgba(220,53,69,0.3) !important; color: #f87171 !important; background: rgba(220,53,69,0.03) !important; }
+        .btn-sidebar-danger:hover { background: rgba(220,53,69,0.15) !important; border-color: #f87171 !important; color: white !important; }
+        .ura-pill { min-width: 95px; padding: 6px 10px; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; display: inline-block; text-align: center; border-radius: 6px; letter-spacing: 0.05em; color: white; }
+        
+        /* Sticky Column Utilities & Scroll Overlap Fixes */
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 50 !important;
+            background-color: #f8f9fa !important;
+        }
+        /* Fix WebKit/Safari bug: if thead is sticky, th left:0 won't stick horizontally */
+        thead.sticky-top {
+            position: static !important;
+        }
+        thead.sticky-top th {
+            position: sticky !important;
+            top: 0;
+            z-index: 50 !important;
+            background-color: #f8f9fa !important;
+        }
+        .sticky-col-1 {
+            position: sticky !important;
+            left: 0;
+            background-color: #ffffff !important;
+            z-index: 10 !important;
+            min-width: 125px !important;
+            max-width: 125px !important;
+            width: 125px !important;
+        }
+        thead.sticky-top th.sticky-col-1,
+        .table-light .sticky-col-1, 
+        .table-light.sticky-col-1 {
+            z-index: 60 !important;
+            background-color: #f8f9fa !important;
+        }
+        .sticky-col-2 {
+            position: sticky !important;
+            left: 125px; /* Matches exact width of col 1 */
+            background-color: #ffffff !important;
+            z-index: 10 !important;
+            box-shadow: inset -3px 0 6px -4px rgba(0,0,0,0.1);
+        }
+        thead.sticky-top th.sticky-col-2,
+        .table-light .sticky-col-2, 
+        .table-light.sticky-col-2 {
+            z-index: 60 !important;
+            background-color: #f8f9fa !important;
+        }
+        
+        /* URA Warning Bar Styles */
+        .vat-warning-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            z-index: 99999;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            padding: 0 20px;
+        }
+        body.has-vat-warning #app-container {
+            height: calc(100vh - 40px) !important;
+            margin-top: 40px !important;
+        }
+        body.has-vat-warning .sidebar {
+            height: calc(100vh - 40px) !important;
+        }
+        body.has-vat-warning .main-content {
+            height: calc(100vh - 40px) !important;
+        }
+        
+        @keyframes warning-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .animate-bounce {
+            display: inline-block;
+            animation: warning-bounce 1s infinite;
+        }
+
+        /* ── Sidebar Alert Badge ────────────────────────────── */
+        .sidebar-alert-badge {
+            position: absolute;
+            top: 7px;
+            right: 10px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            background: #ef4444;
+            color: #ffffff;
+            font-size: 0.62rem;
+            font-weight: 800;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            letter-spacing: 0;
+            border: 2px solid #0f172a;
+            box-shadow: 0 0 0 0 rgba(239,68,68,0.7);
+            animation: badge-pulse 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+            z-index: 5;
+            pointer-events: none;
+        }
+        /* Hide label text in collapsed sidebar, show only the dot */
+        .sidebar.collapsed .sidebar-alert-badge,
+        .sidebar-is-collapsed .sidebar .sidebar-alert-badge,
+        .sidebar-collapsed-init .sidebar .sidebar-alert-badge {
+            right: 4px;
+            top: 4px;
+            font-size: 0 !important; /* hide number */
+            min-width: 10px;
+            height: 10px;
+            padding: 0;
+            border-width: 1.5px;
+        }
+        @keyframes badge-pulse {
+            0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.75); }
+            40%  { box-shadow: 0 0 0 6px rgba(239,68,68,0);    }
+            70%  { box-shadow: 0 0 0 0   rgba(239,68,68,0);    }
+            100% { box-shadow: 0 0 0 0   rgba(239,68,68,0);    }
+        }
+
+
+
+        /* Filter Chips UI */
+        .filter-chip {
+            appearance: none;
+            -webkit-appearance: none;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 6px 14px 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            height: 34px;
+        }
+        .filter-chip:hover {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            border-color: #cbd5e1;
+        }
+        .filter-chip.active {
+            background-color: #e0e7ff;
+            color: #4f46e5;
+            border-color: #c7d2fe;
+            padding-right: 30px; /* Space for clear icon */
+            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.1);
+        }
+        .filter-chip-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .filter-chip-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.75rem;
+            color: #4f46e5;
+            cursor: pointer;
+            z-index: 2;
+            opacity: 0.7;
+            display: none;
+        }
+        .filter-chip-clear:hover {
+            opacity: 1;
+        }
+        .filter-chip.active ~ .filter-chip-clear {
+            display: block;
+        }
+        .btn-sidebar-action:active {
+            transform: translateY(0) scale(0.95) !important;
+            transition: all 0.1s;
+        }
+        .calc-label { font-size: 0.72rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+        ::placeholder { color: #94a3b8 !important; opacity: 0.7 !important; font-weight: 400 !important; }
+        .calc-value { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+        .btn { transition: var(--transition-spring-fast); will-change: transform, box-shadow; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(99, 102, 241, 0.15); }
+        .btn:active { transform: translateY(1px) scale(0.96) !important; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important; transition: transform 0.08s ease; }
+        .form-control, .form-select { 
+            transition: var(--transition-spring-fast); 
+            border-radius: 10px; 
+            border: 1.5px solid #cbd5e1;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .form-control:focus, .form-select:focus { 
+            border-color: #6366f1; 
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); 
+            background-color: #ffffff;
+            outline: none;
+        }
+        
+        /* Premium custom styling for date input */
+        input[type="date"] {
+            position: relative;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236366f1' class='bi bi-calendar3' viewBox='0 0 16 16'%3E%3Cpath d='M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zM1 3.857C1 3.384 1.444 3 2 3h12c.556 0 1 .384 1 .857v10.286c0 .473-.444.857-1 .857H2c-.556 0-1-.384-1-.857V3.857z'/%3E%3Cpath d='M6.5 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 16px;
+            padding-right: 40px;
+            cursor: pointer;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: auto;
+            height: auto;
+            color: transparent;
+            background: transparent;
+            cursor: pointer;
+            z-index: 2;
+        }
+        
+        input[type="date"]:focus, input[type="date"]:valid, input[type="date"]:not(:placeholder-shown) {
+            color: #1e293b;
+        }
+        tbody tr, .registry-row {
+            transition: box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+        }
+        tbody tr:hover, .registry-row:hover {
+            box-shadow: 0 8px 16px -6px rgba(0, 0, 0, 0.06), 0 4px 12px -8px rgba(0, 0, 0, 0.04);
+            background-color: #f8fafc !important;
+            cursor: pointer;
+        }
+        tbody tr:hover td, .registry-row:hover td {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+        
+        /* Smooth fade-in for rows */
+        @keyframes fadeInRow {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-row {
+            opacity: 1 !important;
+            animation: none !important;
+        }
+        .hover-card { transition: var(--transition-spring-slow); cursor: default; will-change: transform, box-shadow; }
+        .hover-card:hover { transform: translateY(-4px) scale(1.008); box-shadow: 0 16px 28px -6px rgba(0, 0, 0, 0.09); }
+        
+        /* Global Modern Table Rules */
+        .modern-table {
+            border-collapse: separate !important;
+            border-spacing: 0;
+            width: 100%;
+        }
+        .modern-table th {
+            font-size: 0.78rem !important;
+            font-weight: 750 !important;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 1.1rem 1rem !important;
+            background-color: #f8fafc !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            color: #64748b !important;
+        }
+        .modern-table td {
+            padding: 1rem 1rem !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            color: #475569;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #ffffff;
+        }
+        .modern-table tbody tr {
+            transition: box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+        }
+        .modern-table tbody tr:hover {
+            box-shadow: 0 8px 16px -6px rgba(0, 0, 0, 0.06), 0 4px 12px -8px rgba(0, 0, 0, 0.04);
+        }
+        .modern-table tbody tr:hover td {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+        
+        /* Global Premium KPI Cards */
+        .report-kpi-card {
+            border-radius: 16px !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            min-height: 105px !important;
+            position: relative;
+            overflow: hidden;
+            color: #ffffff !important;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+        .report-kpi-card:hover {
+            transform: translateY(-5px) scale(1.02);
+        }
+        .report-kpi-card .card-body {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .report-kpi-card .kpi-watermark {
+            position: absolute;
+            bottom: -10px;
+            right: -5px;
+            font-size: 3.5rem;
+            color: rgba(255, 255, 255, 0.12);
+            z-index: 1;
+            pointer-events: none;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .report-kpi-card:hover .kpi-watermark {
+            transform: scale(1.25) rotate(-10deg);
+        }
+        
+        /* Specific KPI Themes */
+        .kpi-theme-revenue {
+            background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%) !important;
+        }
+        .kpi-theme-revenue:hover {
+            box-shadow: 0 16px 32px -6px rgba(59, 130, 246, 0.45) !important;
+        }
+        .kpi-theme-paid {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+        }
+        .kpi-theme-paid:hover {
+            box-shadow: 0 16px 32px -6px rgba(16, 185, 129, 0.45) !important;
+        }
+        .kpi-theme-unpaid {
+            background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%) !important;
+        }
+        .kpi-theme-unpaid:hover {
+            box-shadow: 0 16px 32px -6px rgba(244, 63, 94, 0.45) !important;
+        }
+        .kpi-theme-profit {
+            background: linear-gradient(135deg, #475569 0%, #64748b 100%) !important;
+        }
+        .kpi-theme-profit:hover {
+            box-shadow: 0 16px 32px -6px rgba(100, 116, 139, 0.45) !important;
+        }
+        
+        .sidebar-header { border-bottom: none !important; position: relative; padding-bottom: 25px !important; }
+        .sidebar-header::after { content: ''; position: absolute; bottom: 0; left: 15%; right: 15%; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); }
+        .search-trigger-box { 
+            background: rgba(255,255,255,0.03); 
+            border: 1px solid rgba(255,255,255,0.08); 
+            border-radius: 8px; 
+            padding: 8px 12px; 
+            color: rgba(255,255,255,0.4); 
+            font-size: 0.8rem; 
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            margin-top: 15px; 
+        }
+        .search-trigger-box:hover { 
+            background: rgba(255,255,255,0.08); 
+            border-color: rgba(255,255,255,0.18); 
+            color: rgba(255,255,255,0.7); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+        }
+        .file-context { font-size: 0.65rem; color: rgba(255,255,255,0.25); font-family: 'Courier New', Courier, monospace; letter-spacing: 0.05em; margin-top: 4px; text-transform: uppercase; }
+        .logo-container { transition: transform 0.25s ease, box-shadow 0.25s ease; cursor: pointer; }
+        .logo-container:hover { transform: scale(1.03); }
+        
+        .sidebar.collapsed { width: 72px; }
+        .sidebar.collapsed .sidebar-header .d-flex.flex-column, .sidebar.collapsed .sidebar-section, .sidebar.collapsed .nav-link > span, .sidebar.collapsed .file-context, .sidebar.collapsed .search-trigger-box span, .sidebar.collapsed .btn-sidebar-action > span { display: none !important; }
+        .sidebar.collapsed .sidebar-header { padding: 10px !important; height: 60px; }
+        .sidebar.collapsed .sidebar-toggle { position: static !important; display: flex; justify-content: center; margin: 0; }
+        .sidebar.collapsed .nav-link { flex-direction: column; gap: 2px; margin: 4px; padding: 12px 4px; justify-content: center; }
+        .sidebar.collapsed .nav-link i { font-size: 1.2rem; margin: 0; }
+        
+        .sidebar-is-collapsed { --sidebar-width: 72px !important; }
+        .sidebar-is-collapsed .sidebar .sidebar-header .d-flex.flex-column, 
+        .sidebar-is-collapsed .sidebar .sidebar-section, 
+        .sidebar-is-collapsed .sidebar span, 
+        .sidebar-is-collapsed .sidebar .file-context, 
+        .sidebar-is-collapsed .sidebar .search-trigger-box span, 
+        .sidebar-is-collapsed .sidebar .btn-sidebar-action > span { display: none !important; }
+        .sidebar-is-collapsed .sidebar .sidebar-header { padding: 10px !important; height: 60px; }
+        .sidebar-is-collapsed .sidebar .sidebar-toggle { position: static !important; display: flex; justify-content: center; margin: 0; }
+        .sidebar-is-collapsed .sidebar .nav-link { flex-direction: column; gap: 2px; margin: 4px; padding: 12px 4px; justify-content: center; position: relative; }
+        .sidebar-is-collapsed .sidebar .nav-link i { font-size: 1.2rem; margin: 0; }
+        .sidebar-is-collapsed .sidebar .nav-link.active::before { 
+            left: 0; 
+            top: 0; 
+            bottom: 0; 
+            width: 4px; 
+            height: 100%; 
+            border-radius: 0 4px 4px 0; 
+            background: #ffffff !important; 
+            box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.8); 
+        }
+        
+        .sidebar.collapsed .search-trigger-box,
+        .sidebar-is-collapsed .sidebar .search-trigger-box,
+        .sidebar-collapsed-init .sidebar .search-trigger-box { border-radius: 50%; padding: 0; width: 42px; height: 42px; display: flex; justify-content: center; align-items: center; margin: 10px auto; }
+        
+        .sidebar.collapsed .px-3.mb-3.d-grid,
+        .sidebar-is-collapsed .sidebar .px-3.mb-3.d-grid,
+        .sidebar-collapsed-init .sidebar .px-3.mb-3.d-grid { padding: 0 !important; display: flex !important; flex-direction: column; align-items: center; gap: 8px !important; }
+        
+        .sidebar.collapsed .btn-sidebar-action,
+        .sidebar-is-collapsed .sidebar .btn-sidebar-action,
+        .sidebar-collapsed-init .sidebar .btn-sidebar-action { width: 42px; height: 42px; padding: 0; display: flex; justify-content: center; align-items: center; border-radius: 50%; border-width: 2px !important; }
+        
+        .sidebar.collapsed .btn-sidebar-action i,
+        .sidebar-is-collapsed .sidebar .btn-sidebar-action i,
+        .sidebar-collapsed-init .sidebar .btn-sidebar-action i { margin: 0; font-size: 1rem; }
+        
+        .sidebar.collapsed .d-flex.gap-2,
+        .sidebar-is-collapsed .sidebar .d-flex.gap-2,
+        .sidebar-collapsed-init .sidebar .d-flex.gap-2 { flex-direction: column; width: 100%; align-items: center; gap: 8px !important; }
+        
+        .sidebar.collapsed .nav-link:hover { 
+            background: rgba(255,255,255,0.06); 
+            border-color: rgba(255,255,255,0.1); 
+            transform: scale(1.04); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+        }
+        .sidebar.collapsed .nav-link.active::before { 
+            left: 0; 
+            top: 0; 
+            bottom: 0; 
+            width: 4px; 
+            height: 100%; 
+            border-radius: 0 4px 4px 0; 
+            background: #ffffff !important; 
+            box-shadow: 0 0 14px 3px rgba(255, 255, 255, 0.8); 
+        }
+        .sidebar.collapsed .nav-link:hover i { transform: scale(1.1); color: #ffffff !important; }
+        .sidebar.collapsed .nav-link:active { transform: scale(0.95); transition: transform 0.1s; }
+        
+        .sidebar.collapsed .btn-sidebar-action:hover { transform: scale(1.05); }
+        .sidebar.collapsed .nav-link { justify-content: center; margin: 5px; padding: 12px; }
+        .sidebar.collapsed { overflow-y: auto !important; overflow-x: hidden !important; }
+        
+        /* Consistent scrollbar for collapsed sidebar */
+        .sidebar.collapsed::-webkit-scrollbar { width: 4px; }
+        
+        #global-tooltip {
+            position: fixed;
+            background: #1e293b;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            z-index: 10000;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: #0d6efd; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 6px 20px rgba(13,110,253,0.4); cursor: pointer; z-index: 1000; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .fab:hover { transform: scale(1.1) translateY(-5px); box-shadow: 0 10px 25px rgba(13,110,253,0.5); background: #0b5ed7; }
+        .sidebar-toggle { cursor: pointer; color: rgba(255,255,255,0.3); transition: color 0.2s; padding: 10px; text-align: center; }
+        .sidebar-toggle:hover { color: #fff; }
+        
+        /* Modal Blur Effect */
+        .modal-backdrop { background-color: rgba(15, 23, 42, 0.4) !important; backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+        .modal-backdrop.show { opacity: 1 !important; }
+        body.modal-open .main-content { transform: none !important; -webkit-transform: none !important; will-change: auto !important; }
+        
+        /* Snapshot Modal Transitions & Skeleton */
+        .snapshot-content { transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1); opacity: 1; }
+        .snapshot-loading .snapshot-content { opacity: 0; transform: translateY(10px); }
+        
+        .skeleton {
+            background: #f1f5f9;
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            color: transparent !important;
+        }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        
+        #snapshot-skeleton-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 10; display: none; padding: 1.5rem;
+        }
+        .snapshot-loading #snapshot-skeleton-overlay { display: block; animation: fadeIn 0.3s ease; }
+        
+        /* Modern Rich Card System Messages */
+        .custom-toast {
+            background: rgba(15, 23, 42, 0.95) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            color: #f8fafc !important;
+            padding: 16px 20px;
+            border-radius: 14px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 8px 16px -8px rgba(0, 0, 0, 0.3) !important;
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            pointer-events: auto;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            width: 420px;
+            max-width: 90vw;
+            position: relative;
+            overflow: hidden;
+        }
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .custom-toast-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: hsla(142, 70%, 45%, 0.18);
+            color: hsl(142, 75%, 55%);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .custom-toast-error-icon {
+            background: hsla(0, 84%, 60%, 0.18) !important;
+            color: hsl(0, 84%, 65%) !important;
+        }
+        .custom-toast-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+        .custom-toast-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #ffffff;
+        }
+        .custom-toast-message {
+            font-weight: 500;
+            font-size: 0.88rem;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
+        .custom-toast-close {
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 1.2rem;
+            padding: 0;
+            margin: -2px -4px 0 0;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .custom-toast-close:hover {
+            color: #f8fafc;
+        }
+
+        /* High-End Soft HSL Status Badge System */
+        .status-badge-paid {
+            background-color: hsla(142, 70%, 45%, 0.1) !important;
+            color: hsl(142, 75%, 26%) !important;
+            border: 1.5px solid hsla(142, 70%, 45%, 0.18) !important;
+            border-radius: 30px !important;
+            padding: 4px 12px !important;
+            font-size: 0.76rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.03em !important;
+            box-shadow: 0 2px 5px rgba(16, 185, 129, 0.04) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-transform: uppercase !important;
+            text-shadow: none !important;
+        }
+        .status-badge-pending {
+            background-color: hsla(38, 92%, 50%, 0.1) !important;
+            color: hsl(38, 92%, 32%) !important;
+            border: 1.5px solid hsla(38, 92%, 50%, 0.18) !important;
+            border-radius: 30px !important;
+            padding: 4px 12px !important;
+            font-size: 0.76rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.03em !important;
+            box-shadow: 0 2px 5px rgba(245, 158, 11, 0.04) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-transform: uppercase !important;
+            text-shadow: none !important;
+        }
+        .status-badge-baddebt {
+            background-color: hsla(350, 89%, 60%, 0.1) !important;
+            color: hsl(350, 89%, 40%) !important;
+            border: 1.5px solid hsla(350, 89%, 60%, 0.18) !important;
+            border-radius: 30px !important;
+            padding: 4px 12px !important;
+            font-size: 0.76rem !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.03em !important;
+            box-shadow: 0 2px 5px rgba(244, 63, 94, 0.04) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-transform: uppercase !important;
+            text-shadow: none !important;
+        }
+
+        /* High-End Staggered Row Entrance Animation */
+        @keyframes staggeredFadeInRow {
+            0% { 
+                opacity: 0; 
+                transform: translateY(12px) scale(0.995); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
+        }
+        .staggered-row {
+            opacity: 1 !important;
+            animation: none !important;
+            transform: none !important;
+        }
+        .staggered-row:nth-child(n+40) {
+            opacity: 1 !important;
+            animation: none !important;
+            transform: none !important;
+        }
+    </style>
+    <script>
+        (function() {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                document.documentElement.classList.add('sidebar-collapsed-init');
+                document.documentElement.classList.add('sidebar-is-collapsed');
+            }
+        })();
+
+        // Global Financial & Currency Configuration
+        window.APP_CURRENCY = "{{ currency or (settings.currency if settings else 'UGX') or 'UGX' }}";
+        window.APP_VAT_RATE = Number("{{ vat_rate or (settings.vat_rate if settings else 18.0) or 18.0 }}");
+        window.APP_WHT_RATE = Number("{{ wht_rate or (settings.wht_rate if settings else 6.0) or 6.0 }}");
+        window.APP_PROFIT_MARGIN = Number("{{ profit_margin or (settings.profit_margin if settings else 50.0) or 50.0 }}");
+        window.fmtCurrency = function(v) {
+            return window.APP_CURRENCY + ' ' + Number(v || 0).toLocaleString();
+        };
+
+        // Global Toast Notification Helper
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('custom-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'custom-toast-container';
+                container.style.position = 'fixed';
+                container.style.top = '24px';
+                container.style.left = '50%';
+                container.style.transform = 'translateX(-50%)';
+                container.style.zIndex = '99999';
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.alignItems = 'center';
+                container.style.gap = '12px';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast animate__animated';
+            
+            const isError = type === 'error' || type === 'warning';
+            const iconClass = isError ? 'bi bi-exclamation-circle-fill' : 'bi bi-check-lg';
+            const errorClass = isError ? 'custom-toast-error-icon' : '';
+            const title = isError ? 'System Notice' : 'Success';
+            
+            toast.innerHTML = `
+                <div class="custom-toast-icon ${errorClass}">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="custom-toast-content">
+                    <div class="custom-toast-title">${title}</div>
+                    <div class="custom-toast-message">${message}</div>
+                </div>
+                <button class="custom-toast-close" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>
+            `;
+            
+            // Clear any old/existing popup messages instantly to show only one at a time
+            container.innerHTML = '';
+            container.appendChild(toast);
+            
+            // Force reflow
+            toast.offsetHeight;
+            
+            toast.classList.add('show');
+            
+            // Integrate Feedback for physical device interaction
+            // Use vibration if on mobile
+            if (navigator.vibrate && /Mobi|Android/i.test(navigator.userAgent)) {
+                if (isError) {
+                    navigator.vibrate([200, 100, 200]);
+                } else {
+                    navigator.vibrate(50);
+                }
+            }
+            
+            let duration = 6000;
+            if (message.length > 80 || message.includes('mutaawemandela') || message.includes('+256')) {
+                duration = 10000;
+            }
+            
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.remove('show');
+                    toast.style.transform = 'translateY(-20px) scale(0.95)';
+                    toast.style.opacity = '0';
+                    setTimeout(() => {
+                        if (toast.parentElement) toast.remove();
+                    }, 350);
+                }
+            }, duration);
+        }
+
+        // Global Touch ID interceptor for destructive actions
+        async function secureAction(event, reason, callback) {
+            event.preventDefault();
+            try {
+                const formData = new FormData();
+                formData.append('reason', reason);
+                const resp = await fetch('/api/web/verify_action', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (data.success) {
+                    callback();
+                    return true;
+                } else {
+                    // Fallback to password prompt
+                    const password = prompt(`${data.error || 'Biometric verification failed.'}\nPlease enter your administrator password to confirm:`);
+                    if (password !== null && password !== '') {
+                        const fbData = new FormData();
+                        fbData.append('reason', reason);
+                        fbData.append('password', password);
+                        const fbResp = await fetch('/api/web/verify_action', { method: 'POST', body: fbData });
+                        const fbDataJson = await fbResp.json();
+                        if (fbDataJson.success) {
+                            callback();
+                            return true;
+                        } else {
+                            showToast(fbDataJson.error || 'Incorrect password.', 'error');
+                        }
+                    }
+                }
+            } catch (e) {
+                // If the entire call fails (e.g. backend error), try password fallback directly
+                const password = prompt('Security check failed.\nPlease enter your administrator password to confirm:');
+                if (password !== null && password !== '') {
+                    const fbData = new FormData();
+                    fbData.append('reason', reason);
+                    fbData.append('password', password);
+                    try {
+                        const fbResp = await fetch('/api/web/verify_action', { method: 'POST', body: fbData });
+                        const fbDataJson = await fbResp.json();
+                        if (fbDataJson.success) {
+                            callback();
+                            return true;
+                        } else {
+                            showToast(fbDataJson.error || 'Incorrect password.', 'error');
+                        }
+                    } catch(err) {
+                        showToast('Authentication failed.', 'error');
+                    }
+                }
+            }
+            return false;
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const icon = document.getElementById('toggleIcon');
+            const html = document.documentElement;
+            
+            // Cleanup init classes
+            html.classList.remove('sidebar-collapsed-init');
+            
+            sidebar.classList.toggle('collapsed');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                html.classList.add('sidebar-is-collapsed');
+            } else {
+                html.classList.remove('sidebar-is-collapsed');
+            }
+            
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+            icon.className = isCollapsed ? 'bi bi-layout-sidebar' : 'bi bi-layout-sidebar-inset';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            const sidebar = document.querySelector('.sidebar');
+            const icon = document.getElementById('toggleIcon');
+            
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                if(icon) icon.className = 'bi bi-layout-sidebar';
+            }
+            
+            // Re-enable transitions after initial state is set
+            setTimeout(() => {
+                document.documentElement.classList.add('sidebar-ready');
+            }, 50);
+            
+            // Global Tooltip logic
+            const tooltip = document.getElementById('global-tooltip');
+            document.querySelectorAll('.sidebar .nav-link, .sidebar .btn-sidebar-action, .sidebar .search-trigger-box').forEach(el => {
+                el.addEventListener('mouseenter', (e) => {
+                    const sidebar = document.querySelector('.sidebar');
+                    if (!sidebar.classList.contains('collapsed')) return;
+                    
+                    const title = el.getAttribute('title');
+                    if (!title) return;
+                    
+                    tooltip.innerText = title;
+                    tooltip.style.display = 'block';
+                    const rect = el.getBoundingClientRect();
+                    tooltip.style.top = (rect.top + rect.height/2 - tooltip.offsetHeight/2) + 'px';
+                    tooltip.style.left = (rect.right + 10) + 'px';
+                });
+                el.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+            });
+            
+            // Smooth Page Transitions
+            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+                    // Only intercept internal navigation links that aren't modals or "#"
+                    if (href && href !== '#' && !href.startsWith('javascript:')) {
+                        e.preventDefault();
+                        const mainContent = document.querySelector('.main-content');
+                        if (mainContent) {
+                            mainContent.classList.add('page-exit');
+                        }
+                        // Add active class immediately for feedback
+                        document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+                        this.classList.add('active');
+                        
+                        setTimeout(() => {
+                            window.location.href = href;
+                        }, 250); // Slightly faster than the transition for a snappy feel
+                    }
+                });
+            });
+        });
+    </script>
+</head>
+<div id="global-tooltip"></div>
+<body>
+    <div id="app-container">
+        <div class="sidebar">
+            <script>
+                if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                    document.currentScript.parentElement.classList.add('collapsed');
+                }
+            </script>
+        <div class="sidebar-header p-4 text-center position-relative">
+            <div class="sidebar-toggle position-absolute top-0 end-0 p-2 m-2" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <i class="bi bi-layout-sidebar-inset" id="toggleIcon"></i>
+                <script>
+                    if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                        document.getElementById('toggleIcon').className = 'bi bi-layout-sidebar';
+                    }
+                </script>
+            </div>
+            <div class="d-flex flex-column align-items-center">
+                {% if session.get('user_id') %}
+                <div class="logo-container d-flex align-items-center justify-content-center rounded-circle mb-3" 
+                     style="width:90px;height:90px;border-radius:50% !important;overflow:hidden;flex-shrink:0;box-shadow:0 8px 25px rgba(0,0,0,0.4);border:2.5px solid rgba(255,255,255,0.15);"
+                     title="Logged in as: {{ session.get('user_name') }} | Database: {{ current_db_name }}">
+                    <img src="{{ url_for('get_user_avatar', user_id=session.get('user_id')) }}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;">
+                </div>
+                <div class="text-center w-100 mb-2">
+                    <div class="fw-bold text-white mb-0 text-truncate px-2" style="font-size:1.15rem;line-height:1.2;">
+                        {{ session.get('user_name') }}
+                    </div>
+                    <span class="text-white text-opacity-50 small mt-1 d-inline-block" style="font-size:0.75rem; font-weight: 600;">
+                        {% if session.get('is_admin') %}Admin{% else %}User{% endif %}
+                    </span>
+                </div>
+                <div class="d-flex gap-2 w-100 justify-content-center mb-1">
+                    <a href="{{ url_for('logout') }}" class="btn btn-sm py-1 px-2 d-flex align-items-center gap-1 fw-semibold shadow-none"
+                       style="font-size:0.75rem; border-radius:6px; border: none !important; outline: none !important; color: rgba(255,255,255,0.45) !important; background: transparent !important; transition: color 0.2s ease;"
+                       onmouseover="this.style.color='rgba(255,255,255,0.85)';"
+                       onmouseout="this.style.color='rgba(255,255,255,0.45)';"
+                       title="Log Out of your current session">
+                        <i class="bi bi-box-arrow-right"></i> Logout
+                    </a>
+                </div>
+
+                {% else %}
+                <div class="logo-container d-flex align-items-center justify-content-center rounded-3 mb-3" 
+                     style="width:90px;height:90px;background:#ffffff;flex-shrink:0;box-shadow:0 8px 25px rgba(0,0,0,0.4);"
+                     title="{{ system_name }} | Database: {{ current_db_name }}">
+                    {% if branding and branding.logo %}
+                    <img src="{{ branding.logo }}" alt="Logo" style="width:74px;height:74px;object-fit:contain;padding:4px;">
+                    {% else %}
+                    <i class="bi bi-briefcase-fill" style="font-size:2.5rem;color:#0d6efd;"></i>
+                    {% endif %}
+                </div>
+                <div class="text-center w-100">
+                    <div class="fw-bold text-white mb-0" style="font-size:1.1rem;line-height:1.2;letter-spacing:-0.01em;text-transform:uppercase;">
+                        COMPANY <span style="color:#60a5fa;">DATABASE</span>
+                    </div>
+                    <div class="file-context text-truncate px-2" title="{{ current_db_name }}">{{ current_db_name }}</div>
+                </div>
+                {% endif %}
+                
+                <div class="search-trigger-box w-100 d-flex align-items-center gap-2" onclick="openSearchModal()">
+                    <i class="bi bi-search"></i>
+                    <span>Quick find...</span>
+                    <span class="ms-auto opacity-50 small">⌘F</span>
+                </div>
+            </div>
+        </div>
+        <nav class="nav flex-column py-4" style="padding-bottom: 80px !important;">
+
+            <a class="nav-link" href="javascript:void(0)" onclick="window.openAlertDrawer()" title="Notifications" id="sidebar-notifications-link" style="position: relative;">
+                <i class="bi bi-bell"></i> <span>Notifications</span>
+                {% if global_alert_count > 0 %}
+                <span class="sidebar-alert-badge" id="sidebar-alert-badge">{{ global_alert_count }}</span>
+                {% endif %}
+            </a>
+            <hr>
+            <div class="sidebar-section">Overview</div>
+            <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}" title="Dashboard" id="sidebar-dashboard-link">
+                <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+            </a>
+            <hr>
+            <div class="sidebar-section">Sales</div>
+            <a class="nav-link {% if active_page == 'all_entries' %}active{% endif %}" href="{{ url_for('all_entries') }}" title="All Entries Registry">
+                <i class="bi bi-grid-3x3-gap"></i> <span>All Entries Registry</span>
+            </a>
+            <a class="nav-link {% if active_page == 'reports' %}active{% endif %}" href="{{ url_for('reports') }}" title="Reports Center">
+                <i class="bi bi-file-earmark-bar-graph"></i> <span>Reports & Demand Notes</span>
+            </a>
+            <hr>
+            <div class="sidebar-section">Management</div>
+            <a class="nav-link {% if active_page == 'clients' %}active{% endif %}" href="{{ url_for('clients') }}" title="Client Management">
+                <i class="bi bi-people"></i> <span>Clients</span>
+            </a>
+            <a class="nav-link {% if active_page == 'areas' %}active{% endif %}" href="{{ url_for('areas') }}" title="Supply Areas">
+                <i class="bi bi-geo-alt"></i> <span>Supply Areas</span>
+            </a>
+            <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}" title="Company Settings">
+                <i class="bi bi-gear"></i> <span>Settings</span>
+            </a>
+            {% if session.get('is_admin') %}
+            <a class="nav-link {% if active_page == 'users' %}active{% endif %}" href="{{ url_for('manage_users') }}" title="User Profiles">
+                <i class="bi bi-person-badge"></i> <span>User Profiles</span>
+            </a>
+            {% endif %}
+        </nav>
+        <script>
+            (function() {
+                const sidebar = document.currentScript.parentElement;
+                const scrollPos = localStorage.getItem('sidebarScroll');
+                if (scrollPos) {
+                    sidebar.scrollTop = parseInt(scrollPos, 10);
+                }
+            })();
+        </script>
+    </div>
+    
+
+
+    {% if session.get('is_admin') %}
+    <div class="fab" onclick="if(typeof resetModal === 'function') resetModal(); bootstrap.Modal.getOrCreateInstance(document.getElementById('newContractModal')).show()" title="New Sale Entry">
+        <i class="bi bi-plus-lg"></i>
+    </div>
+    {% endif %}
+
+    <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                let toastType = 'success';
+                {% if category in ['error', 'danger', 'warning', 'warn'] %}
+                    toastType = 'error';
+                {% endif %}
+                showToast("{{ message }}", toastType);
+            });
+        </script>
+        {% endfor %}{% endif %}{% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    </div> <!-- Close app-container -->
+
+    <style>
+        #loader-sidebar { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; 
+            z-index: 9999; backdrop-filter: blur(5px); flex-direction: column; color: #1e293b;
+        }
+        .spinner-sidebar { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <script>
+        // Keyboard Productivity Shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Check for Cmd (Mac) or Ctrl (Windows/Linux)
+            const isMod = e.metaKey || e.ctrlKey;
+            
+            // Ctrl + F: Global Search
+            if (isMod && e.key === 'f') {
+                e.preventDefault();
+                if (typeof openSearchModal === 'function') {
+                    openSearchModal();
+                }
+            }
+            // Ctrl + N: New Sale
+            if (isMod && e.key === 'n') {
+                e.preventDefault();
+                if(typeof resetModal === 'function') resetModal();
+                const saleModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newContractModal'));
+                saleModal.show();
+            }
+            // Ctrl + S: Save Changes
+            if (isMod && e.key === 's') {
+                e.preventDefault();
+                window.location.href = "{{ url_for('save_current') }}";
+            }
+            // Esc: Close Modals
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal.show');
+                modals.forEach(m => {
+                    const inst = bootstrap.Modal.getInstance(m);
+                    if(inst) inst.hide();
+                });
+            }
+        });
+
+        function switchProfileTransition(e, url) {
+            e.preventDefault();
+            document.getElementById('loader-text').innerText = 'Closing active session...';
+            document.getElementById('loader-sidebar').style.display = 'flex';
+            document.getElementById('app-container').classList.add('fade-out');
+            setTimeout(() => {
+                window.location.href = url;
+            }, 600);
+        }
+
+
+
+    </script>
+
+    <div id="loader-sidebar">
+        <div class="spinner-sidebar"></div>
+        <div class="fw-bold" id="loader-text">Initializing Database...</div>
+    </div>
+
+    </div>
+    
+    <!-- Client Snapshot Modal -->
+    <div class="modal fade" id="clientSnapshotModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="snap_name">Client Snapshot</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 snapshot-content-wrapper position-relative">
+                    <!-- Skeleton Overlay -->
+                    <div id="snapshot-skeleton-overlay">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4"><div class="skeleton" style="height: 80px;"></div></div>
+                            <div class="col-md-4"><div class="skeleton" style="height: 80px;"></div></div>
+                            <div class="col-md-4"><div class="skeleton" style="height: 80px;"></div></div>
+                        </div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6"><div class="skeleton" style="height: 80px;"></div></div>
+                            <div class="col-md-6"><div class="skeleton" style="height: 80px;"></div></div>
+                        </div>
+                        <div class="skeleton mb-2" style="height: 30px; width: 200px;"></div>
+                        <div class="skeleton" style="height: 200px;"></div>
+                    </div>
+                    
+                    <div class="snapshot-content">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light border border-primary hover-card h-100">
+                                <div class="card-body text-center p-3">
+                                    <div class="small text-muted fw-bold mb-1">TOTAL REVENUE</div>
+                                    <div class="fw-bold text-primary fs-5 snap-stat-value" id="snap_rev">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light border border-success hover-card h-100">
+                                <div class="card-body text-center p-3">
+                                    <div class="small text-muted fw-bold mb-1">EST. NET PROFIT</div>
+                                    <div class="fw-bold text-success fs-5 snap-stat-value" id="snap_profit">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light border border-danger hover-card h-100">
+                                <div class="card-body text-center p-3">
+                                    <div class="small text-muted fw-bold mb-1">OUTSTANDING</div>
+                                    <div class="fw-bold text-danger fs-5 snap-stat-value" id="snap_unpaid">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light border border-warning hover-card h-100">
+                                <div class="card-body text-center p-3">
+                                    <div class="small text-muted fw-bold mb-1">PROJECTS COMPLETED</div>
+                                    <div class="fw-bold text-dark fs-5 snap-stat-value" id="snap_count">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light border border-info hover-card h-100">
+                                <div class="card-body text-center p-3">
+                                    <div class="small text-muted fw-bold mb-1">AVERAGE PROJECT VALUE</div>
+                                    <div class="fw-bold text-info fs-5 snap-stat-value" id="snap_avg">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">Full Transaction History</h6>
+                    <div class="table-responsive rounded-3 border" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-sm modern-table align-middle mb-0" style="white-space: nowrap;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="small fw-bold text-muted">ID</th>
+                                    <th class="small fw-bold text-muted">DATE</th>
+                                    <th class="small fw-bold text-muted">DETAILS</th>
+                                    <th class="small fw-bold text-muted">AREA</th>
+                                    <th class="small fw-bold text-muted">CONTRACT NO</th>
+                                    <th class="small fw-bold text-muted">INVOICE NO</th>
+                                    <th class="small fw-bold text-muted">DN NO</th>
+                                    <th class="small fw-bold text-muted">COMPANY</th>
+                                    <th class="small fw-bold text-muted">TYPE</th>
+                                    <th class="small fw-bold text-muted">OWNERSHIP</th>
+                                    <th class="small fw-bold text-muted">GOV?</th>
+                                    <th class="small fw-bold text-muted">VAT?</th>
+                                    <th class="small fw-bold text-muted text-center">STATUS</th>
+                                    <th class="small fw-bold text-muted">PAYMENT DATE</th>
+                                    <th class="small fw-bold text-muted">URA</th>
+                                    <th class="small fw-bold text-muted text-end">AMOUNT</th>
+                                    <th class="small fw-bold text-muted text-end">INVESTMENT</th>
+                                    <th class="small fw-bold text-muted text-end text-info">VAT (18%)</th>
+                                    <th class="small fw-bold text-muted text-end text-success">NET PAYABLE</th>
+                                    <th class="small fw-bold text-muted text-end text-emerald">PROFIT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="snap_table"></tbody>
+                        </table>
+                    </div> <!-- end table-responsive -->
+                    </div> <!-- end snapshot-content -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        function showClientSnapshot(clientId, preserveScroll) {
+            window.activeSnapshotClientId = clientId;
+            const modalEl = document.getElementById('clientSnapshotModal');
+            const snapTable = document.getElementById('snap_table');
+            const tableContainer = snapTable ? snapTable.closest('.table-responsive') : null;
+            const modalBody = modalEl.querySelector('.modal-body');
+            
+            // Capture current scroll before clearing content (only relevant when preserving)
+            const savedTableScroll = (preserveScroll && tableContainer) ? tableContainer.scrollTop : 0;
+            const savedModalScroll = (preserveScroll && modalBody) ? modalBody.scrollTop : 0;
+            
+            // 1. Trigger Loading State
+            modalEl.classList.add('snapshot-loading');
+            
+            // 2. Clear previous table immediately to avoid "ghost" content during skeleton
+            if (snapTable) snapTable.innerHTML = '';
+            
+            // 3. Reset Scroll Positions only when opening fresh (not refreshing after a save)
+            if (!preserveScroll) {
+                if (tableContainer) { tableContainer.scrollTop = 0; tableContainer.scrollLeft = 0; }
+                if (modalBody) modalBody.scrollTop = 0;
+            }
+            
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+            fetch(`/api/client_snapshot/${clientId}`).then(r=>r.json()).then(data => {
+                if(data.error) {
+                    modalEl.classList.remove('snapshot-loading');
+                    return;
+                }
+                
+                // Update Summary Cards
+                document.getElementById('snap_name').innerText = data.name + ' - Portfolio Snapshot';
+                document.getElementById('snap_rev').innerText = (window.APP_CURRENCY || 'UGX') + ' ' + Math.round(data.total_rev).toLocaleString();
+                document.getElementById('snap_profit').innerText = (window.APP_CURRENCY || 'UGX') + ' ' + Math.round(data.total_profit).toLocaleString();
+                document.getElementById('snap_unpaid').innerText = (window.APP_CURRENCY || 'UGX') + ' ' + Math.round(data.unpaid).toLocaleString();
+                document.getElementById('snap_count').innerText = data.count;
+                document.getElementById('snap_avg').innerText = (window.APP_CURRENCY || 'UGX') + ' ' + Math.round(data.avg_value).toLocaleString();
+                
+                const currSymbol = window.APP_CURRENCY || 'UGX';
+                const vatRate = window.APP_VAT_RATE || 18.0;
+                const whtRate = window.APP_WHT_RATE || 6.0;
+                const profitMargin = (window.APP_PROFIT_MARGIN !== undefined ? window.APP_PROFIT_MARGIN : 50.0) / 100.0;
+
+                document.getElementById('snap_table').innerHTML = data.recent.map((s, index) => {
+                    const vat = s.is_vat_rated ? (s.total * vatRate / (100.0 + vatRate)) : 0;
+                    const wht = (s.is_gov || s.is_vat_rated) ? ((s.total - vat) * (whtRate / 100.0)) : 0;
+                    const net_payable = s.total - (wht * 2);
+                    const net_amount = s.total - (vat + wht);
+                    const profit = (s.investment_amount !== null && s.investment_amount !== undefined) ? (net_amount - s.investment_amount) : (profitMargin * net_amount);
+
+                    const animClass = index < 12 ? 'animate__animated animate__fadeInUp' : '';
+                    const animDelay = index < 12 ? `animation-delay: ${index * 0.03}s;` : '';
+
+                    return `
+                    <tr class="registry-row ${animClass}" style="${animDelay} cursor: pointer; white-space: nowrap;" ondblclick="editInPopup(${s.id})" title="Double tap to edit">
+                        <td class="fw-bold text-primary small">${s.entry_id}</td>
+                        <td class="small fw-bold">${s.completion_date}</td>
+                        <td><div class="text-truncate small fw-bold" style="max-width: 200px; color: #64748b;" title="${s.contract_details || ''}">${s.contract_details || ''}</div></td>
+                        <td><span class="badge bg-light text-muted border small px-2">${s.area_name || ''}</span></td>
+                        <td class="small text-muted">${s.contract_no || ''}</td>
+                        <td class="fw-bold text-dark">${s.invoice_code ? s.invoice_code.toString().split('.')[0] : ''}</td>
+                        <td class="text-muted small">${s.po_no ? s.po_no.toString().split('.')[0] : ''}</td>
+                        <td class="small text-muted">${s.company_name || ''}</td>
+                        <td class="small text-muted">${s.contract_type || ''}</td>
+                        <td class="small text-muted">${s.ownership_status || ''}</td>
+                        <td class="small text-muted">${s.is_gov ? 'Yes' : 'No'}</td>
+                        <td class="small text-muted">${s.is_vat_rated ? 'Yes' : 'No'}</td>
+                        <td class="text-center"><span class="badge ${s.payment_status === 'PAID' ? 'status-badge-paid' : ((s.payment_status === 'BAD DEBT' || s.payment_status === 'CANCELLED') ? 'status-badge-baddebt' : 'status-badge-pending')}">${s.payment_status}</span></td>
+                        <td class="small text-muted">${s.payment_date || '-'}</td>
+                        <td class="small text-muted"><span class="ura-pill text-white ${s.ura_status === 'PAID' ? 'bg-success' : s.ura_status === 'UNPAID' ? 'bg-danger' : s.ura_status === 'OFFSET' ? 'bg-primary' : 'bg-secondary'}">${s.ura_status || ''}</span></td>
+                        <td class="text-end fw-bold text-primary">${currSymbol} ${Math.round(s.total).toLocaleString()}</td>
+                        <td class="text-end text-muted small">${Math.round(s.investment_amount || 0).toLocaleString()}</td>
+                        <td class="text-end text-info small">${Math.round(s.vat || 0).toLocaleString()}</td>
+                        <td class="text-end fw-bold text-dark">${currSymbol} ${Math.round(s.net_payable || 0).toLocaleString()}</td>
+                        <td class="text-end fw-bold text-success">${currSymbol} ${Math.round(s.profit || 0).toLocaleString()}</td>
+                    </tr>
+                    `;
+                }).join('');
+                
+                // Remove loading state with a slight delay to allow rendering
+                setTimeout(() => {
+                    modalEl.classList.remove('snapshot-loading');
+                    // Restore or reset scroll depending on context
+                    if (preserveScroll) {
+                        // Restore to where user was before the save refresh
+                        if (tableContainer) tableContainer.scrollTop = savedTableScroll;
+                        if (modalBody) modalBody.scrollTop = savedModalScroll;
+                    } else {
+                        // Fresh open — reset scroll to top
+                        if (tableContainer) { tableContainer.scrollTop = 0; tableContainer.scrollLeft = 0; }
+                    }
+                }, 400); // 400ms matches the CSS transition duration
+            });
+        }
+
+        function toggleSnapSelectAll(source) {
+            // Checkboxes removed as per user request
+        }
+
+        (function() {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.addEventListener('scroll', () => {
+                    localStorage.setItem('sidebarScroll', sidebar.scrollTop);
+                }, { passive: true });
+            }
+        })();
+
+        function closeWithTransition() {
+            const loader = document.getElementById('loader-sidebar');
+            const loaderText = document.getElementById('loader-text');
+            const container = document.getElementById('app-container');
+            
+            loaderText.innerText = "Closing Database...";
+            container.classList.add('fade-out');
+            loader.style.display = 'flex';
+            setTimeout(function() {
+                window.location.href = "{{ url_for('close_database') }}";
+            }, 800);
+        }
+
+        function handleProjectOp(promise) {
+            if (!promise) return;
+            const loader = document.getElementById('loader-sidebar');
+            const container = document.getElementById('app-container');
+            
+            promise.then(function(success) {
+                if (success) {
+                    container.classList.add('fade-out');
+                    loader.style.display = 'flex';
+                    setTimeout(function() {
+                    window.location.href = "/";
+                }, 800);
+            }
+        });
+    }
+</script>
+
+<!-- New Contract Modal -->
+<div class="modal fade" id="newContractModal" tabindex="-1" style="z-index: 2050;">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold" id="newContractModalLabel">New Entry Form</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 bg-white">
+        <form action="{{ url_for('add_sale') }}" method="POST" id="newContractForm">
+            <input type="hidden" name="current_url" value="{{ request.path }}">
+            <input type="hidden" name="id" id="m_id" value="">
+            <input type="hidden" name="action" id="m_action" value="save_exit">
+            <div class="card p-4 mb-4 border-0 shadow-sm" style="background: #f8fafc;">
+                <h5 class="fw-bold mb-4 border-bottom pb-3">1. Core Identification & Details</h5>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Entry ID</label>
+                        <input type="text" name="entry_id" id="m_entry_id" class="form-control fw-bold text-primary border-0" value="{{ global_next_id }}" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Completion Date</label>
+                        <input type="text" name="completion_date" id="m_completion_date" class="form-control bg-white" placeholder="dd/mmm/yyyy">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Contract No.</label>
+                        <input type="text" name="contract_no" id="m_contract_no" class="form-control" placeholder="CONT-123">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Delivery Note No.</label>
+                        <input type="text" name="po_no" id="m_po_no" class="form-control" placeholder="DN-456">
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Invoice No.</label>
+                        <input type="text" name="invoice" id="m_invoice" class="form-control" placeholder="INV-001">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tax Invoice Date</label>
+                        <input type="text" name="tax_invoice_date" id="m_tax_invoice_date" class="form-control bg-white" placeholder="dd/mmm/yyyy">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Full Details of Contract / Sale <span class="text-danger">*</span></label>
+                        <input type="text" name="contract_details" id="m_contract_details" class="form-control" placeholder="e.g. Supply of office stationery to accounts department..." required>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span>Client <span class="text-danger">*</span></span>
+                            <a href="javascript:void(0)" onclick="quickAdd('client')" class="text-decoration-none small fw-bold text-primary">+ New Client</a>
+                        </label>
+                        <select name="client_id" id="m_client_id" class="form-select" required>
+                            <option value="">Select Client...</option>
+                            {% for c in global_clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span>Area of Supply</span>
+                            <a href="javascript:void(0)" onclick="quickAdd('area')" class="text-decoration-none small fw-bold text-primary">+ New Area</a>
+                        </label>
+                        <select name="area_id" id="m_area_id" class="form-select">
+                            <option value="">Select Area...</option>
+                            {% for a in global_areas %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Supplying Company</label>
+                        <select name="company_name" id="m_company_name" class="form-select">
+                            {% for c in opts.company_names %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4 mb-4 border-0 shadow-sm" style="background: #f8fafc;">
+                <h5 class="fw-bold mb-4 border-bottom pb-3">2. Compliance & Status</h5>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Contract Type</label>
+                        <select name="contract_type" id="m_contract_type" class="form-select">
+                            {% for t in opts.contract_types %}<option {% if t|upper == 'SUPPLY' %}selected{% endif %}>{{ t }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Ownership Status</label>
+                        <select name="ownership_status" id="m_ownership_status" class="form-select">
+                            {% for o in opts.ownership_statuses %}<option value="{{ o }}" {% if o|upper == 'OWNED' %}selected{% endif %}>{{ o }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Government?</label>
+                        <select id="m_is_gov" name="is_gov" class="form-select"><option value="1">Yes</option><option value="0" selected>No</option></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">VAT Rated?</label>
+                        <select id="m_is_vat" name="is_vat" class="form-select"><option value="1">Yes</option><option value="0" selected>No</option></select>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <label class="form-label">Payment Status</label>
+                        <select id="m_pay_status" name="payment_status" class="form-select">
+                            {% for s in opts.payment_statuses %}<option value="{{ s }}" {% if s|upper == 'NOT PAID' %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Payment Date</label>
+                        <input type="text" id="m_pay_date_input" name="payment_date" class="form-control bg-white" placeholder="dd/mmm/yyyy">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">URA Status</label>
+                        <select name="ura_status" id="m_ura_status" class="form-select" onchange="toggleTaxPeriod()">
+                            {% for u in opts.ura_statuses %}<option>{{ u }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" style="white-space:nowrap;">Tax Period (mmm-yyyy)</label>
+                        <input type="text" name="tax_period" id="m_tax_period" class="form-control bg-white" placeholder="Jun-2026">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4 border-0 shadow-sm" style="background: #f8fafc;">
+                <h5 class="fw-bold mb-4 border-bottom pb-3">3. Financial Calculations</h5>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded bg-primary bg-opacity-10">
+                            <label class="form-label text-primary">Total Contract Amount (<span class="app-curr-label">{{ currency or 'UGX' }}</span>) <span class="text-danger">*</span></label>
+                            <input type="text" id="m_amount" name="amount" class="form-control form-control-lg border-primary" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded bg-danger bg-opacity-10">
+                            <label class="form-label text-danger">Total Investment / Expenses (<span class="app-curr-label">{{ currency or 'UGX' }}</span>)</label>
+                            <input type="text" id="m_investment" name="investment" class="form-control form-control-lg">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col"><div class="calc-box border-0" style="background:rgba(13,110,253,0.08);"><div class="calc-label" style="color:#0d6efd;">VAT (<span id="modal_vat_pct">{{ vat_rate or 18 }}</span>%)</div><div class="calc-value text-primary fw-bold" id="m_v">0</div></div></div>
+                    <div class="col"><div class="calc-box border-0" style="background:rgba(108,117,125,0.08);"><div class="calc-label">Net Amount</div><div class="calc-value fw-bold" id="m_n">0</div></div></div>
+                    <div class="col"><div class="calc-box border-0" style="background:rgba(220,53,69,0.08);"><div class="calc-label text-danger">WHT (<span id="modal_wht_pct">{{ wht_rate or 6 }}</span>%)</div><div class="calc-value text-danger fw-bold" id="m_w">0</div></div></div>
+                    <div class="col"><div class="calc-box bg-primary bg-opacity-10 border-0"><div class="calc-label text-primary">Net Payable</div><div class="calc-value" id="m_p">0</div></div></div>
+                    <div class="col"><div class="calc-box bg-success bg-opacity-10 border-0"><div class="calc-label text-success">Profit</div><div class="calc-value" id="m_pr">0</div></div></div>
+                </div>
+            </div>
+      </div>
+      <div class="modal-footer bg-light justify-content-between">
+        <button type="button" class="btn btn-outline-danger fw-bold" data-bs-dismiss="modal">Cancel Entry</button>
+        <div class="d-flex gap-2">
+            <button type="submit" id="btn-save-new" onclick="document.getElementById('m_action').value='save_new'" class="btn btn-primary fw-bold shadow-sm">Save & New</button>
+            <button type="submit" id="btn-save-exit" onclick="document.getElementById('m_action').value='save_exit'" class="btn btn-success fw-bold shadow-sm"><i class="bi bi-check-circle me-2"></i> Save & Exit</button>
+        </div>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Global Search Modal -->
+<div class="modal fade" id="globalSearchModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-0">
+        <h5 class="modal-title fw-bold"><i class="bi bi-search me-2"></i> Global Search</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="sticky-top bg-white pb-2 mb-2" style="top: -1.5rem; z-index: 1055;">
+            <input type="text" id="globalSearchInput" class="form-control form-control-lg shadow-sm" placeholder="Search by Entry ID, Invoice, Contract Details, PO No, or Client Name..." autofocus>
+            <div id="searchLoadingBar" style="height:3px; background:linear-gradient(90deg,#3b82f6,#6366f1,#3b82f6); background-size:200% 100%; animation:searchSlide 1s linear infinite; border-radius:0 0 4px 4px; visibility:hidden;"></div>
+        </div>
+        <style>@keyframes searchSlide{0%{background-position:100% 0}100%{background-position:-100% 0}}</style>
+        <div class="table-responsive rounded-3 border" style="height: 62vh; overflow-y: auto;">
+            <table class="table align-middle table-hover table-striped mb-0" style="white-space: nowrap;">
+                <thead class="table-light sticky-top" style="z-index: 1;">
+                    <tr>
+                        <th class="small fw-bold text-muted">ENTRY ID</th>
+                        <th class="small fw-bold text-muted">COMPLETION DATE</th>
+                        <th class="small fw-bold text-muted">CONTRACT DETAILS</th>
+                        <th class="small fw-bold text-muted">CONTRACT NO.</th>
+                        <th class="small fw-bold text-muted">DELIVERY NOTE NO.</th>
+                        <th class="small fw-bold text-muted">INVOICE NO.</th>
+                        <th class="small fw-bold text-muted">CLIENT NAME</th>
+                        <th class="small fw-bold text-muted">SUPPLY AREA</th>
+                        <th class="small fw-bold text-muted">SUPPLYING COMPANY</th>
+                        <th class="small fw-bold text-muted">CONTRACT TYPE</th>
+                        <th class="small fw-bold text-muted">OWNERSHIP STATUS</th>
+                        <th class="small fw-bold text-muted">GOVERNMENT?</th>
+                        <th class="small fw-bold text-muted">VAT RATED?</th>
+                        <th class="small fw-bold text-muted">PAYMENT STATUS</th>
+                        <th class="small fw-bold text-muted">PAYMENT DATE</th>
+                        <th class="small fw-bold text-muted">URA STATUS</th>
+                        <th class="small fw-bold text-muted text-end">CONTRACT AMOUNT</th>
+                        <th class="small fw-bold text-muted text-end">INVESTMENT</th>
+                        <th class="small fw-bold text-muted text-end">VAT (<span class="header-vat-pct">{{ vat_rate or 18 }}</span>%)</th>
+                        <th class="small fw-bold text-muted text-end">NET PAYABLE</th>
+                        <th class="small fw-bold text-muted text-end">PROFIT</th>
+                    </tr>
+                </thead>
+                <tbody id="globalSearchResults">
+                    <tr><td colspan="24" class="text-muted text-center py-4">Type to search records...</td></tr>
+                </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    const ma = document.getElementById('m_amount'), mi = document.getElementById('m_investment'), mvS = document.getElementById('m_is_vat'), mgS = document.getElementById('m_is_gov'), mpS = document.getElementById('m_pay_status'), mpD = document.getElementById('m_pay_date_input');
+    
+    function formatVal(v) { return v ? v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : ''; }
+    function parseVal(v) { return parseFloat(v.toString().replace(/,/g, '')) || 0; }
+
+    function toggleTaxPeriod() {
+        const uStat = document.getElementById('m_ura_status').value.toUpperCase();
+        const el = document.getElementById('m_tax_period');
+        if (!el) return;
+        if (uStat === 'PAID' || uStat === 'OFFSET') {
+            el.disabled = false;
+            el.style.backgroundColor = '#ffffff';
+            el.style.cursor = 'pointer';
+            if (_taxPeriodPicker) {
+                _taxPeriodPicker.set('clickOpens', true);
+            }
+        } else {
+            if (_taxPeriodPicker) _taxPeriodPicker.clear();
+            el.value = '';
+            el.disabled = true;
+            el.style.backgroundColor = '';
+            el.style.cursor = 'not-allowed';
+            if (_taxPeriodPicker) {
+                _taxPeriodPicker.set('clickOpens', false);
+            }
+        }
+    }
+
+    function resetModal() {
+        document.getElementById('newContractForm').reset();
+        if (_taxPeriodPicker) _taxPeriodPicker.clear();
+        if (_completionDatePicker) _completionDatePicker.clear();
+        if (_taxInvoiceDatePicker) _taxInvoiceDatePicker.clear();
+        if (_paymentDatePicker) _paymentDatePicker.clear();
+        document.getElementById('m_id').value = "";
+        document.getElementById('m_entry_id').value = "{{ global_next_id }}";
+        document.getElementById('newContractForm').setAttribute('action', "{{ url_for('add_sale') }}");
+        document.getElementById('newContractModalLabel').innerText = "New Entry Form";
+        document.getElementById('btn-save-new').style.display = "inline-block";
+        toggleTaxPeriod();
+        if(ma) calcModal();
+    }
+    
+    const newContractTrigger = document.querySelector('[data-bs-target="#newContractModal"]');
+    if (newContractTrigger) newContractTrigger.addEventListener('click', resetModal);
+    
+    function editInPopup(id) {
+        fetch('/api/sale/' + id).then(r=>r.json()).then(data => {
+            if(!data.id) return;
+            document.getElementById('m_id').value = data.id;
+            document.getElementById('m_entry_id').value = data.entry_id || '';
+            document.getElementById('m_invoice').value = data.invoice_code || '';
+            document.getElementById('m_contract_no').value = data.contract_no || '';
+            document.getElementById('m_po_no').value = data.po_no || '';
+            document.getElementById('m_contract_details').value = data.contract_details || '';
+            if (_completionDatePicker) {
+                _completionDatePicker.setDate((data.completion_date || '').split(' ')[0], false);
+            } else {
+                document.getElementById('m_completion_date').value = (data.completion_date || '').split(' ')[0];
+            }
+            document.getElementById('m_client_id').value = data.client_id || '';
+            document.getElementById('m_area_id').value = data.area_id || '';
+            document.getElementById('m_company_name').value = data.company_name || '';
+            document.getElementById('m_contract_type').value = data.contract_type || '';
+            document.getElementById('m_ownership_status').value = data.ownership_status || 'OWNED';
+            document.getElementById('m_is_gov').value = data.is_gov ? '1' : '0';
+            document.getElementById('m_is_vat').value = data.is_vat_rated ? '1' : '0';
+            document.getElementById('m_pay_status').value = data.payment_status || 'NOT PAID';
+            if (_paymentDatePicker) {
+                _paymentDatePicker.setDate((data.payment_date || '').split(' ')[0], false);
+            } else {
+                document.getElementById('m_pay_date_input').value = (data.payment_date || '').split(' ')[0];
+            }
+            if (_taxInvoiceDatePicker) {
+                _taxInvoiceDatePicker.setDate((data.tax_invoice_date || '').split(' ')[0], false);
+            } else {
+                document.getElementById('m_tax_invoice_date').value = (data.tax_invoice_date || '').split(' ')[0];
+            }
+            document.getElementById('m_ura_status').value = data.ura_status || 'NOT FILEABLE';
+            if (_taxPeriodPicker) {
+                if (data.tax_period) { _taxPeriodPicker.setDate(data.tax_period, false); }
+                else { _taxPeriodPicker.clear(); }
+            } else {
+                document.getElementById('m_tax_period').value = data.tax_period || '';
+            }
+            document.getElementById('m_amount').value = data.total ? formatVal(data.total) : '';
+            document.getElementById('m_investment').value = data.investment_amount ? formatVal(data.investment_amount) : '';
+            toggleTaxPeriod();
+            
+            document.getElementById('newContractForm').setAttribute('action', "{{ url_for('update_sale') }}");
+            document.getElementById('newContractModalLabel').innerText = "Edit Entry Form";
+            document.getElementById('btn-save-new').style.display = "none";
+            
+            calcModal();
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newContractModal'));
+            modal.show();
+        });
+    }
+
+    if(ma) {
+        function calcModal() {
+            const amt = parseVal(ma.value), isV = mvS.value === "1", isG = mgS.value === "1";
+            const vatRate = parseFloat(document.getElementById('modal_vat_pct').innerText) || (window.APP_VAT_RATE || 18.0);
+            const whtRate = parseFloat(document.getElementById('modal_wht_pct').innerText) || (window.APP_WHT_RATE || 6.0);
+            const profitMargin = (window.APP_PROFIT_MARGIN !== undefined ? window.APP_PROFIT_MARGIN : 50.0) / 100.0;
+
+            const vat = isV ? (amt * vatRate / (100.0 + vatRate)) : 0;
+            const wht = (isG || isV) ? ((amt - vat) * (whtRate / 100.0)) : 0;
+            const net_amount = amt - (vat + wht);
+            const net_payable = amt - (wht * 2);
+            
+            let profit;
+            if (mi.value.trim() === "") {
+                profit = profitMargin * net_amount;
+            } else {
+                const inv = parseVal(mi.value);
+                profit = net_amount - inv;
+            }
+
+            document.getElementById('m_v').innerText = Math.round(vat).toLocaleString();
+            document.getElementById('m_n').innerText = Math.round(net_amount).toLocaleString();
+            document.getElementById('m_w').innerText = Math.round(wht).toLocaleString();
+            document.getElementById('m_p').innerText = Math.round(net_payable).toLocaleString();
+            document.getElementById('m_pr').innerText = Math.round(profit).toLocaleString();
+            
+            if (mpS.value === "PAID") { mpD.parentElement.style.opacity = "1"; mpD.disabled = false; } 
+            else { mpD.parentElement.style.opacity = "0.4"; mpD.disabled = true; }
+        }
+
+        function handleCurrencyInput(e) {
+            let cursor = e.target.selectionStart;
+            let oldLen = e.target.value.length;
+            let raw = e.target.value.replace(/,/g, '');
+            if(!isNaN(raw) && raw !== "") {
+                e.target.value = formatVal(raw);
+                let newLen = e.target.value.length;
+                e.target.setSelectionRange(cursor + (newLen - oldLen), cursor + (newLen - oldLen));
+            }
+            calcModal();
+        }
+
+        [ma, mi].forEach(el => el.addEventListener('input', handleCurrencyInput));
+        [mvS, mgS, mpS].forEach(el => el.addEventListener('input', calcModal));
+        
+        document.getElementById('newContractForm').onsubmit = function(e) {
+            e.preventDefault();
+            const actionVal = document.getElementById('m_action').value;
+            const form = this;
+            
+            // Clean numbers
+            const amtInput = document.getElementById('m_amount');
+            const invInput = document.getElementById('m_investment');
+            if(amtInput) amtInput.value = amtInput.value.replace(/,/g, '');
+            if(invInput) invInput.value = invInput.value.replace(/,/g, '');
+            
+            const formData = new FormData(form);
+            formData.append('ajax', '1');
+
+            const targetUrl = form.getAttribute('action');
+            console.log('Submitting to URL:', targetUrl, '| action value:', actionVal);
+            fetch(targetUrl, {
+                method: 'POST',
+                body: formData
+            }).then(async r => {
+                const rawText = await r.text();
+                console.log('Server response (' + r.status + '):', rawText.substring(0, 500));
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch(e) {
+                    showToast('Server returned unexpected response (status ' + r.status + ') from URL: ' + targetUrl, 'error');
+                    return;
+                }
+                if (!data.success) {
+                    showToast('Save failed: ' + (data.error || 'Unknown server error'), 'error');
+                    return;
+                }
+                if (actionVal === 'save_new') {
+                    resetModal();
+                    if (data.next_id) {
+                        document.getElementById('m_entry_id').value = data.next_id;
+                    }
+                    showToast('New contract entry saved successfully!');
+                } else {
+                    showToast('Contract changes saved successfully!');
+                    const modalEl = document.getElementById('newContractModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl) || bootstrap.Modal.getOrCreateInstance(modalEl);
+                    if (modal) {
+                        modal.hide();
+                    }
+                    if (data.id) {
+                        document.getElementById('m_id').value = data.id;
+                        form.setAttribute('action', "{{ url_for('update_sale') }}");
+                        document.getElementById('newContractModalLabel').innerText = "Edit Entry Form";
+                        document.getElementById('btn-save-new').style.display = "none";
+                    }
+                }
+                
+                // Universal Background Table Update
+                const snapModalEl = document.getElementById('clientSnapshotModal');
+                if (snapModalEl && snapModalEl.classList.contains('show') && window.activeSnapshotClientId) {
+                    showClientSnapshot(window.activeSnapshotClientId, true);
+                }
+                
+                const searchModalEl = document.getElementById('globalSearchModal');
+                if (searchModalEl && searchModalEl.classList.contains('show')) {
+                    const searchInput = document.getElementById('globalSearchInput');
+                    if (searchInput) searchInput.dispatchEvent(new Event('input'));
+                }
+                
+                // Auto-update dashboard figures/charts if the function exists
+                if (typeof window.updateDashboard === 'function') {
+                    window.updateDashboard();
+                }
+                
+                if (typeof window.refreshRegistry === 'function') {
+                    window.refreshRegistry();
+                } else {
+                    const preservedUraFilter = (document.getElementById('uraStatusFilter') || {}).value || 'ALL';
+                    const dynamicIds = ['masterRegistry', 'reportTable', 'dashboardTable', 'ura-pane'];
+
+                    // Capture scroll positions before patching the DOM
+                    const savedWindowScroll = window.scrollY || window.pageYOffset || 0;
+                    const savedElScrolls = {};
+                    dynamicIds.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            // Check the element itself and its nearest scrollable ancestor
+                            const scrollable = el.closest('.table-responsive') || el;
+                            savedElScrolls[id] = { top: scrollable.scrollTop, left: scrollable.scrollLeft };
+                            el.style.transition = 'opacity 0.15s ease-out';
+                            el.style.opacity = '0';
+                        }
+                    });
+
+                    fetch(window.location.href)
+                        .then(res => res.text())
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            setTimeout(() => {
+                                dynamicIds.forEach(id => {
+                                    const currentEl = document.getElementById(id);
+                                    const newEl = doc.getElementById(id);
+                                    if (currentEl && newEl) {
+                                        currentEl.innerHTML = newEl.innerHTML;
+                                    }
+                                });
+                                // Restore URA status filter value and re-run filter logic
+                                const newFilterEl = document.getElementById('uraStatusFilter');
+                                if (newFilterEl) {
+                                    newFilterEl.value = preservedUraFilter;
+                                    if (typeof window.handleUraFilterChange === 'function') window.handleUraFilterChange(newFilterEl);
+                                    if (typeof window.filterUraTable === 'function') window.filterUraTable();
+                                }
+                                dynamicIds.forEach(id => {
+                                    const updatedEl = document.getElementById(id);
+                                    if (updatedEl) {
+                                        updatedEl.style.opacity = '0';
+                                        updatedEl.style.transition = 'opacity 0.2s ease-in';
+                                        requestAnimationFrame(() => {
+                                            updatedEl.style.opacity = '1';
+                                        });
+                                    }
+                                });
+                                // Restore scroll positions after DOM patch
+                                requestAnimationFrame(() => {
+                                    window.scrollTo({ top: savedWindowScroll, behavior: 'instant' });
+                                    dynamicIds.forEach(id => {
+                                        const el = document.getElementById(id);
+                                        if (el && savedElScrolls[id]) {
+                                            const scrollable = el.closest('.table-responsive') || el;
+                                            scrollable.scrollTop = savedElScrolls[id].top;
+                                            scrollable.scrollLeft = savedElScrolls[id].left;
+                                        }
+                                    });
+                                });
+                            }, 150);
+                        });
+                }
+            }).catch(err => {
+                console.error("Network error:", err);
+                showToast("Network error: " + err.message, "error");
+            });
+        };
+        
+        {% if request.args.get('open_modal') == 'true' %}
+        resetModal();
+        const myModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newContractModal'));
+        myModal.show();
+        {% endif %}
+    }
+
+        function quickAdd(type) {
+            const modalId = type === 'client' ? 'quickAddClientModal' : 'quickAddAreaModal';
+            bootstrap.Modal.getOrCreateInstance(document.getElementById(modalId)).show();
+        }
+
+        function submitQuickAdd(type) {
+            const inputId = type === 'client' ? 'quickClientName' : 'quickAreaName';
+            const name = document.getElementById(inputId).value;
+            if (!name) return;
+            const formData = new FormData();
+            formData.append('name', name);
+            fetch(`/api/add_${type}_fast`, { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.id) {
+                    const select = document.getElementById(type === 'client' ? 'm_client_id' : 'm_area_id');
+                    const opt = new Option(data.name, data.id, true, true);
+                    select.add(opt);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById(type === 'client' ? 'quickAddClientModal' : 'quickAddAreaModal'));
+                    if(modal) modal.hide();
+                    document.getElementById(inputId).value = '';
+                }
+            });
+        }
+        // ─── Global Search ───────────────────────────────────────────────
+        (function () {
+
+            // Highlight every word in the query individually
+            function highlight(text, words) {
+                if (!text) return '';
+                let result = text.toString();
+                if (!words || words.length === 0) return result;
+                words.forEach(function (w) {
+                    if (!w) return;
+                    const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const re = new RegExp('(' + escaped + ')', 'gi');
+                    result = result.replace(re, '<mark class="p-0 bg-warning bg-opacity-50 text-dark">$1</mark>');
+                });
+                return result;
+            }
+
+            function fmtDate(d) {
+                if (!d) return '';
+                if (typeof d === 'string') {
+                    const datePart = d.split(/[ T]/)[0];
+                    const parts = datePart.split(/[-/]/);
+                    if (parts.length === 3) {
+                        const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                        let yyyy, mm, dd;
+                        if (parts[0].length === 4) {
+                            yyyy = parts[0];
+                            mm = parseInt(parts[1], 10) - 1;
+                            dd = parseInt(parts[2], 10);
+                        } else if (parts[2].length === 4) {
+                            dd = parseInt(parts[0], 10);
+                            mm = parseInt(parts[1], 10) - 1;
+                            yyyy = parts[2];
+                        }
+                        if (!isNaN(dd) && !isNaN(mm) && mm >= 0 && mm < 12 && yyyy) {
+                            return dd.toString().padStart(2, '0') + '-' + m[mm] + '-' + yyyy;
+                        }
+                    }
+                }
+                const dt = new Date(d);
+                if (isNaN(dt.getTime())) return d;
+                const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                if (typeof d === 'string' && d.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    return dt.getUTCDate().toString().padStart(2,'0') + '-' + m[dt.getUTCMonth()] + '-' + dt.getUTCFullYear();
+                }
+                return dt.getDate().toString().padStart(2,'0') + '-' + m[dt.getMonth()] + '-' + dt.getFullYear();
+            }
+
+            function fmtNum(n) {
+                return Number(n || 0).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0});
+            }
+
+            function renderRow(item, words, index) {
+                const vat = item.is_vat_rated ? (item.total * 18 / 118) : 0;
+                const wht = (item.is_gov || item.is_vat_rated) ? ((item.total - vat) * 0.06) : 0;
+                const net_payable = item.total - (wht * 2);
+                const profit = (item.total - (vat + wht)) - item.investment_amount;
+                const delay = Math.min(index * 0.005, 0.3);
+                const badgeClass = item.payment_status === 'PAID'
+                    ? 'status-badge-paid'
+                    : ((item.payment_status === 'BAD DEBT' || item.payment_status === 'CANCELLED')
+                        ? 'status-badge-baddebt'
+                        : 'status-badge-pending');
+                return `<tr class="registry-row staggered-row" ondblclick="editInPopup(${item.id})" style="cursor:pointer; --row-index: ${index};">
+                    <td class="fw-bold text-primary small">${highlight(item.entry_id, words)}</td>
+                    <td class="small fw-bold text-dark">${fmtDate(item.completion_date)}</td>
+                    <td><div class="text-truncate small fw-bold" style="max-width:200px;color:#64748b;" title="${(item.contract_details||'').replace(/"/g,'&quot;')}">${highlight(item.contract_details, words)}</div></td>
+                    <td class="text-muted small">${highlight(item.contract_no, words)}</td>
+                    <td class="text-muted small">${highlight(item.po_no ? String(item.po_no).split('.')[0] : '', words)}</td>
+                    <td class="fw-bold text-dark">${highlight(item.invoice_code ? String(item.invoice_code).split('.')[0] : '', words)}</td>
+                    <td class="fw-bold">${highlight(item.client_name, words)}</td>
+                    <td><span class="badge bg-light text-muted border small px-2">${highlight(item.area_name, words)}</span></td>
+                    <td class="small text-muted">${highlight(item.company_name, words)}</td>
+                    <td class="small">${item.contract_type || ''}</td>
+                    <td class="small">${item.ownership_status || ''}</td>
+                    <td class="small">${item.is_gov ? 'Yes' : 'No'}</td>
+                    <td class="small">${item.is_vat_rated ? 'Yes' : 'No'}</td>
+                    <td class="text-center"><span class="badge rounded-pill px-3 py-1 fw-bold small ${badgeClass}">${item.payment_status||''}</span></td>
+                    <td class="small text-muted">${fmtDate(item.payment_date)}</td>
+                    <td class="small"><span class="ura-pill text-white ${item.ura_status === 'PAID' ? 'bg-success' : item.ura_status === 'UNPAID' ? 'bg-danger' : item.ura_status === 'OFFSET' ? 'bg-primary' : 'bg-secondary'}">${item.ura_status || ''}</span></td>
+                    <td class="text-end fw-bold text-dark">${fmtNum(item.total)}</td>
+                    <td class="text-end text-muted small">${fmtNum(item.investment_amount)}</td>
+                    <td class="text-end text-info small">${fmtNum(vat)}</td>
+                    <td class="text-end text-success fw-bold small">${fmtNum(net_payable)}</td>
+                    <td class="text-end fw-black" style="color:#059669;">${fmtNum(profit)}</td>
+                </tr>`;
+            }
+
+            let _debounceTimer = null;
+            let _currentRequest = null;
+
+            function setLoading(on) {
+                const bar = document.getElementById('searchLoadingBar');
+                if (bar) bar.style.visibility = on ? 'visible' : 'hidden';
+            }
+
+            function performSearch() {
+                const searchInput = document.getElementById('globalSearchInput');
+                const searchResults = document.getElementById('globalSearchResults');
+                if (!searchInput || !searchResults) return;
+
+                const q = searchInput.value.trim();
+                const words = q ? q.split(/\s+/).filter(Boolean) : [];
+
+                // Show loading bar — do NOT clear the table
+                setLoading(true);
+
+                // Abort any in-flight request
+                if (_currentRequest) _currentRequest.abort();
+                const controller = new AbortController();
+                _currentRequest = controller;
+
+                fetch(window.location.origin + '/api/search?q=' + encodeURIComponent(q), { signal: controller.signal })
+                    .then(function(r) {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(function(data) {
+                        setLoading(false);
+                        _currentRequest = null;
+                        if (!data || data.length === 0) {
+                            searchResults.innerHTML = '<tr><td colspan="22" class="text-center text-muted py-5">No records found.</td></tr>';
+                            return;
+                        }
+                        searchResults.innerHTML = data.map(function(item, index) {
+                            return renderRow(item, words, index);
+                        }).join('');
+                    })
+                    .catch(function(err) {
+                        if (err.name === 'AbortError') return; // request was superseded
+                        setLoading(false);
+                        _currentRequest = null;
+                        console.error('Search error:', err);
+                        searchResults.innerHTML = '<tr><td colspan="22" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Error loading results. Please try again.</td></tr>';
+                    });
+            }
+
+            function debouncedSearch() {
+                clearTimeout(_debounceTimer);
+                _debounceTimer = setTimeout(performSearch, 300);
+            }
+
+            window.openSearchModal = function() {
+                const modalEl = document.getElementById('globalSearchModal');
+                if (!modalEl) return;
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+                modalEl.addEventListener('shown.bs.modal', function _onShown() {
+                    modalEl.removeEventListener('shown.bs.modal', _onShown);
+                    const inp = document.getElementById('globalSearchInput');
+                    if (inp) {
+                        inp.value = '';
+                        inp.setAttribute('readonly', 'readonly');
+                        setTimeout(function() {
+                            inp.removeAttribute('readonly');
+                            inp.focus();
+                            // If pywebview, also trigger native-side focus as a fallback
+                            if (window.pywebview && window.pywebview.api) {
+                                setTimeout(function() {
+                                    window.pywebview.api.focus_search_input();
+                                }, 100);
+                            }
+                        }, 150);
+                    }
+                    performSearch();
+                });
+
+                modal.show();
+            };
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const inp = document.getElementById('globalSearchInput');
+                if (inp) inp.addEventListener('input', debouncedSearch);
+            });
+
+        })();
+        // ─────────────────────────────────────────────────────────────────
+
+    function openReport(url) {
+        const fullUrl = window.location.origin + url;
+        if (window.pywebview && window.pywebview.api) {
+            window.pywebview.api.open_external(fullUrl);
+        } else {
+            window.open(fullUrl, '_blank');
+        }
+    }
+</script>
+<!-- Client Management Modals -->
+<div class="modal fade" id="addClientModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('add_client') }}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Add New Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Client Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Ministry of Finance" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">TIN Number <span class="text-muted">(Optional)</span></label>
+                    <input type="text" name="tin" class="form-control" placeholder="e.g. 1234567890">
+                </div>
+                <div>
+                    <label class="form-label small fw-bold">Address <span class="text-muted">(Optional)</span></label>
+                    <input type="text" name="address" class="form-control" placeholder="e.g. Plot 1, Parliament Avenue, Kampala">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary fw-bold px-4">Save Client</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="editClientModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('update_client') }}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Edit Client Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" name="id" id="editClientId">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Client Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" id="editClientName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">TIN Number <span class="text-muted">(Optional)</span></label>
+                    <input type="text" name="tin" id="editClientTin" class="form-control">
+                </div>
+                <div>
+                    <label class="form-label small fw-bold">Address <span class="text-muted">(Optional)</span></label>
+                    <input type="text" name="address" id="editClientAddress" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success fw-bold px-4 text-white">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.edit-client-btn');
+    if (btn) {
+        document.getElementById('editClientId').value = btn.dataset.id;
+        document.getElementById('editClientName').value = btn.dataset.name;
+        document.getElementById('editClientTin').value = btn.dataset.tin;
+        document.getElementById('editClientAddress').value = btn.dataset.address;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editClientModal')).show();
+    }
+});
+</script>
+
+<!-- Quick Add Client Modal -->
+<div class="modal fade" id="quickAddClientModal" tabindex="-1" style="z-index: 2060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Quick Add Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Client Name <span class="text-danger">*</span></label>
+                    <input type="text" id="quickClientName" class="form-control" placeholder="e.g. Ministry of Finance" required>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" onclick="submitQuickAdd('client')" class="btn btn-primary fw-bold px-4">Save Client</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Add Area Modal -->
+<div class="modal fade" id="quickAddAreaModal" tabindex="-1" style="z-index: 2060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Quick Add Supply Area</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Area Name <span class="text-danger">*</span></label>
+                    <input type="text" id="quickAreaName" class="form-control" placeholder="e.g. Kampala Central" required>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" onclick="submitQuickAdd('area')" class="btn btn-primary fw-bold px-4">Save Area</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Supply Areas Modal -->
+<div class="modal fade" id="supplyAreasModal" tabindex="-1" style="z-index: 2040;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; background: #ffffff;">
+            <div class="modal-header border-0 pb-0 px-4 pt-4 d-flex justify-content-between align-items-center">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center mb-0">
+                    <i class="bi bi-geo-alt-fill text-primary me-2 fs-4"></i> Supply Areas
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    {% if session.get('is_admin') %}
+                    <button class="btn btn-primary btn-sm fw-bold px-3 py-1.5 shadow-sm" onclick="openAddNewAreaModal()" style="border-radius: 10px; font-size: 0.8rem;">
+                        <i class="bi bi-plus-circle me-1"></i> Add Area
+                    </button>
+                    {% endif %}
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Areas List Container -->
+                <div id="modal-areas-list" class="d-flex flex-column gap-2" style="max-height: 450px; overflow-y: auto; padding-right: 12px; margin-right: -8px;">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add New Area Modal -->
+<div class="modal fade" id="addNewAreaModal" tabindex="-1" style="z-index: 2050;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold text-dark">Add New Supply Area</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <label class="form-label small fw-bold text-muted">Area Name <span class="text-danger">*</span></label>
+                <input type="text" id="new-area-name-input-modal" class="form-control" placeholder="e.g. Kampala Central" required style="border-radius: 10px; font-weight: 600;">
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 20px;">Cancel</button>
+                <button type="button" onclick="submitNewAreaFromSeparateModal()" class="btn btn-primary fw-bold" style="border-radius: 12px; padding: 10px 24px;">Save Area</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Area Popup Modal -->
+<div class="modal fade" id="editAreaPopupModal" tabindex="-1" style="z-index: 2060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                    <span class="d-flex align-items-center justify-content-center rounded-3" style="width:34px;height:34px;background:rgba(37,99,235,0.1);color:#2563eb;">
+                        <i class="bi bi-pencil-fill" style="font-size:0.9rem;"></i>
+                    </span>
+                    Edit Supply Area
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 pb-0 pt-3 bg-white">
+                <label class="form-label small fw-bold text-muted mb-1">Area Name <span class="text-danger">*</span></label>
+                <input type="text" id="edit-area-popup-input" class="form-control fw-bold" placeholder="e.g. Kampala Central"
+                    style="border-radius: 10px; font-size: 0.95rem;"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();submitEditAreaPopup();}">
+                <div class="text-muted small mt-2 d-flex align-items-center gap-1">
+                    <i class="bi bi-info-circle"></i> Renaming will update this area name across all linked entries.
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-3 px-4 pb-4 gap-2">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 20px;">Cancel</button>
+                <button type="button" id="edit-area-popup-save-btn" onclick="submitEditAreaPopup()" class="btn btn-primary fw-bold" style="border-radius: 12px; padding: 10px 24px;">
+                    <i class="bi bi-check-circle me-2"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Area Snapshot Modal -->
+<div class="modal fade" id="areaSnapshotModal" tabindex="-1" style="z-index: 2050;">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 px-4 pt-4">
+                <h5 class="modal-title fw-bold" id="area_snap_name">Area Snapshot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 area-snapshot-content-wrapper position-relative">
+                <!-- Skeleton Overlay -->
+                <div id="area-snapshot-skeleton-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 10; display: none; padding: 1.5rem;">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4"><div class="skeleton animate__shimmer" style="height: 80px; border-radius: 12px; background: #f1f5f9;"></div></div>
+                        <div class="col-md-4"><div class="skeleton animate__shimmer" style="height: 80px; border-radius: 12px; background: #f1f5f9;"></div></div>
+                        <div class="col-md-4"><div class="skeleton animate__shimmer" style="height: 80px; border-radius: 12px; background: #f1f5f9;"></div></div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6"><div class="skeleton animate__shimmer" style="height: 80px; border-radius: 12px; background: #f1f5f9;"></div></div>
+                        <div class="col-md-6"><div class="skeleton animate__shimmer" style="height: 80px; border-radius: 12px; background: #f1f5f9;"></div></div>
+                    </div>
+                    <div class="skeleton mb-2" style="height: 25px; width: 180px; border-radius: 6px; background: #f1f5f9;"></div>
+                    <div class="skeleton" style="height: 180px; border-radius: 12px; background: #f1f5f9;"></div>
+                </div>
+                
+                <div class="area-snapshot-content">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light border border-primary hover-card h-100" style="border-radius: 12px;">
+                                <div class="card-body text-center p-3">
+                                    <div class="text-muted fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.05em;">TOTAL REVENUE</div>
+                                    <div class="fw-bold text-primary fs-4" id="area_snap_rev">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light border border-success hover-card h-100" style="border-radius: 12px;">
+                                <div class="card-body text-center p-3">
+                                    <div class="text-muted fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.05em;">EST. NET PROFIT</div>
+                                    <div class="fw-bold text-success fs-4" id="area_snap_profit">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light border border-danger hover-card h-100" style="border-radius: 12px;">
+                                <div class="card-body text-center p-3">
+                                    <div class="text-muted fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.05em;">OUTSTANDING</div>
+                                    <div class="fw-bold text-danger fs-4" id="area_snap_unpaid">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light border border-warning hover-card h-100" style="border-radius: 12px;">
+                                <div class="card-body text-center p-3">
+                                    <div class="text-muted fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.05em;">PROJECTS COMPLETED</div>
+                                    <div class="fw-bold text-dark fs-4" id="area_snap_count">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light border border-info hover-card h-100" style="border-radius: 12px;">
+                                <div class="card-body text-center p-3">
+                                    <div class="text-muted fw-bold mb-1" style="font-size: 0.8rem; letter-spacing: 0.05em;">AVERAGE PROJECT VALUE</div>
+                                    <div class="fw-bold text-info fs-4" id="area_snap_avg">0</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <h6 class="fw-bold mb-3 border-bottom pb-2">Full Transaction History</h6>
+                    <div class="table-responsive rounded-3 border" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-sm modern-table align-middle mb-0 text-start" style="white-space: nowrap;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="fw-bold text-muted px-3 py-2">ID</th>
+                                    <th class="fw-bold text-muted">DATE</th>
+                                    <th class="fw-bold text-muted">CLIENT</th>
+                                    <th class="fw-bold text-muted">DETAILS</th>
+                                    <th class="fw-bold text-muted text-center">STATUS</th>
+                                    <th class="fw-bold text-muted text-end">AMOUNT</th>
+                                    <th class="fw-bold text-muted text-end text-success px-3">PROFIT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="area_snap_table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block modals %}{% endblock %}
+<script>
+{% if active_page != 'reports' %}
+sessionStorage.removeItem('reports_filter_expanded');
+{% endif %}
+
+// Initialize Datepickers
+var _taxPeriodPicker = null;
+var _completionDatePicker = null;
+var _taxInvoiceDatePicker = null;
+var _paymentDatePicker = null;
+document.addEventListener('DOMContentLoaded', function() {
+    _taxPeriodPicker = flatpickr("#m_tax_period", {
+        plugins: [
+            new monthSelectPlugin({
+                shorthand: true, // Use short month names (mmm-yyyy)
+                dateFormat: "M-Y",
+                altFormat: "M-Y",
+                theme: "light"
+            })
+        ],
+        disableMobile: true,
+        allowInput: false
+    });
+
+    _completionDatePicker = flatpickr("#m_completion_date", {
+        altInput: true,
+        altFormat: "d/M/Y", // dd/mmm/yyyy
+        dateFormat: "Y-m-d",
+        allowInput: true
+    });
+
+    _taxInvoiceDatePicker = flatpickr("#m_tax_invoice_date", {
+        altInput: true,
+        altFormat: "d/M/Y", // dd/mmm/yyyy
+        dateFormat: "Y-m-d",
+        allowInput: true
+    });
+
+    _paymentDatePicker = flatpickr("#m_pay_date_input", {
+        altInput: true,
+        altFormat: "d/M/Y", // dd/mmm/yyyy
+        dateFormat: "Y-m-d",
+        allowInput: true
+    });
+});
+
+// Auto-close datepickers when a date is selected
+document.addEventListener('change', function(e) {
+    if (e.target && e.target.type === 'date') {
+        e.target.blur();
+    }
+});
+
+// Supply Areas Modal Scripts
+function openSupplyAreasModal() {
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('supplyAreasModal'));
+    modal.show();
+    loadSupplyAreas();
+}
+
+function loadSupplyAreas() {
+    const listContainer = document.getElementById('modal-areas-list');
+    if (listContainer) {
+        listContainer.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+    }
+    
+    const isAdmin = {{ 'true' if session.get('is_admin') else 'false' }};
+    
+    fetch('/api/supply_areas')
+        .then(r => r.json())
+        .then(data => {
+            renderModalAreas(data, isAdmin);
+        })
+        .catch(err => {
+            if (listContainer) {
+                listContainer.innerHTML = `
+                    <div class="alert alert-danger text-center p-3" role="alert" style="border-radius:12px;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Failed to load supply areas.
+                    </div>
+                `;
+            }
+        });
+}
+
+function renderModalAreas(areas, isAdmin) {
+    const listContainer = document.getElementById('modal-areas-list');
+    if (!listContainer) return;
+    
+    if (!areas || areas.length === 0) {
+        listContainer.innerHTML = `
+            <div class="text-center py-5 border rounded-4 border-dashed bg-light" style="border-style: dashed !important; border-width: 2px !important; border-color: #cbd5e1 !important;">
+                <i class="bi bi-geo-alt text-muted fs-1 mb-3"></i>
+                <h6 class="fw-bold text-dark">No Supply Areas Found</h6>
+                <p class="text-muted small mb-0">Get started by creating a new supply area.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const bgAccents = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.12)', 'rgba(245, 158, 11, 0.12)', 'rgba(139, 92, 246, 0.12)', 'rgba(244, 63, 94, 0.12)', 'rgba(71, 85, 105, 0.12)'];
+    const textAccents = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#e11d48', '#475569'];
+    
+    listContainer.innerHTML = areas.map((a, index) => {
+        const colorIdx = index % 6;
+        const bgAccent = bgAccents[colorIdx];
+        const textAccent = textAccents[colorIdx];
+        const escapedName = a.name.replace(/'/g, "\\'");
+        
+        return `
+            <div class="area-item-card d-flex align-items-center p-3 bg-white rounded-4 shadow-sm position-relative" style="border: 1.5px solid #f1f5f9 !important; transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); margin-bottom: 2px; cursor: pointer;" id="area-card-${a.id}" onclick="showAreaSnapshot(${a.id})" title="Click to view portfolio snapshot">
+                <!-- Left Icon Avatar -->
+                <div class="icon-box-avatar d-flex align-items-center justify-content-center me-3 rounded-4" style="width: 44px; height: 44px; background: ${bgAccent}; color: ${textAccent}; flex-shrink: 0; transition: transform 0.2s ease;">
+                    <i class="bi bi-geo-alt-fill fs-5"></i>
+                </div>
+                
+                <!-- Info Section -->
+                <div class="flex-grow-1 min-w-0 text-start">
+                    <h6 class="fw-bold text-dark mb-1 text-truncate" style="font-size: 0.95rem; letter-spacing: -0.01em;">${a.name}</h6>
+                    <div class="d-flex align-items-center gap-3 text-muted small" style="font-size: 0.78rem; font-weight: 600;">
+                        <span><i class="bi bi-file-earmark-text me-1"></i> ${a.contract_count} Contracts</span>
+                        <span style="color: #cbd5e1;">•</span>
+                        <span class="text-success"><i class="bi bi-cash-stack me-1"></i> ${window.APP_CURRENCY || 'UGX'} ${Math.round(a.total_value).toLocaleString()}</span>
+                    </div>
+                </div>
+                
+                <!-- Actions Section -->
+                <div class="d-flex align-items-center gap-2">
+                    ${isAdmin ? `
+                        <button onclick="event.stopPropagation(); openEditAreaPopup(${a.id}, '${escapedName}')" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 fw-bold" style="font-size: 0.75rem; border-width: 1.5px;">
+                            <i class="bi bi-pencil me-1"></i> Edit
+                        </button>
+                    ` : `
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1.5 rounded-pill fw-bold" style="font-size: 0.7rem;">ACTIVE</span>
+                    `}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function openAddNewAreaModal() {
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addNewAreaModal'));
+    document.getElementById('new-area-name-input-modal').value = '';
+    modal.show();
+}
+
+function submitNewAreaFromSeparateModal() {
+    const input = document.getElementById('new-area-name-input-modal');
+    if (!input || !input.value.trim()) {
+        showToast('Please enter an area name.', 'error');
+        return;
+    }
+    
+    const name = input.value.trim();
+    const formData = new FormData();
+    formData.append('name', name);
+    
+    fetch('/api/add_area_fast', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            showToast(data.error, 'error');
+        } else {
+            showToast(`Supply Area "${name}" created successfully.`);
+            
+            // Close separate Add modal
+            const addModal = bootstrap.Modal.getInstance(document.getElementById('addNewAreaModal'));
+            if (addModal) addModal.hide();
+            
+            // Reload Supply Areas in main modal
+            loadSupplyAreas();
+        }
+    })
+    .catch(err => {
+        showToast('Failed to create supply area: ' + err, 'error');
+    });
+}
+
+function openEditAreaPopup(id, name) {
+    // Store the area id on the popup modal
+    const popup = document.getElementById('editAreaPopupModal');
+    if (!popup) return;
+    popup.dataset.areaId = id;
+    document.getElementById('edit-area-popup-input').value = name;
+    bootstrap.Modal.getOrCreateInstance(popup).show();
+}
+
+function submitEditAreaPopup() {
+    const popup = document.getElementById('editAreaPopupModal');
+    const id = popup ? popup.dataset.areaId : null;
+    const input = document.getElementById('edit-area-popup-input');
+    if (!id || !input || !input.value.trim()) {
+        showToast('Area name cannot be empty.', 'error');
+        return;
+    }
+
+    const name = input.value.trim();
+    const saveBtn = document.getElementById('edit-area-popup-save-btn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...'; }
+
+    fetch('/api/supply_areas/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: parseInt(id), name: name })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Save Changes'; }
+        if (data.error) {
+            showToast(data.error, 'error');
+        } else {
+            showToast(`Supply area renamed to "${name}" successfully.`);
+            const editModal = bootstrap.Modal.getInstance(popup);
+            if (editModal) editModal.hide();
+            loadSupplyAreas();
+        }
+    })
+    .catch(err => {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Save Changes'; }
+        showToast('Failed to update supply area: ' + err, 'error');
+    });
+}
+
+function showAreaSnapshot(areaId) {
+    const modalEl = document.getElementById('areaSnapshotModal');
+    const skeleton = document.getElementById('area-snapshot-skeleton-overlay');
+    const tableBody = document.getElementById('area_snap_table');
+    const tableContainer = tableBody ? tableBody.closest('.table-responsive') : null;
+    
+    // 1. Show Loading State
+    if (skeleton) skeleton.style.display = 'block';
+    if (tableBody) tableBody.innerHTML = '';
+    if (tableContainer) { tableContainer.scrollTop = 0; tableContainer.scrollLeft = 0; }
+    
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    
+    fetch(`/api/area_snapshot/${areaId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                if (skeleton) skeleton.style.display = 'none';
+                showToast(data.error, 'error');
+                return;
+            }
+            
+            // Update fields
+            const currSymbol = window.APP_CURRENCY || 'UGX';
+            document.getElementById('area_snap_name').innerText = data.name + ' - Supply Area Snapshot';
+            document.getElementById('area_snap_rev').innerText = currSymbol + ' ' + Math.round(data.total_rev).toLocaleString();
+            document.getElementById('area_snap_profit').innerText = currSymbol + ' ' + Math.round(data.total_profit).toLocaleString();
+            document.getElementById('area_snap_unpaid').innerText = currSymbol + ' ' + Math.round(data.unpaid).toLocaleString();
+            document.getElementById('area_snap_count').innerText = data.count;
+            document.getElementById('area_snap_avg').innerText = currSymbol + ' ' + Math.round(data.avg_value).toLocaleString();
+            
+            // Build table rows
+            tableBody.innerHTML = data.recent.map((s, index) => {
+                const animClass = index < 12 ? 'animate__animated animate__fadeInUp' : '';
+                const animDelay = index < 12 ? `animation-delay: ${index * 0.03}s;` : '';
+
+                return `
+                    <tr class="${animClass}" style="${animDelay} white-space: nowrap; cursor: pointer;" ondblclick="editInPopup(${s.id})" title="Double tap/click to edit entry">
+                        <td class="fw-bold text-primary px-3 py-2">${s.entry_id}</td>
+                        <td class="fw-bold">${s.completion_date || '-'}</td>
+                        <td class="fw-bold text-slate-700">${s.client_name || ''}</td>
+                        <td><div class="text-truncate fw-medium" style="max-width: 220px;" title="${s.contract_details || ''}">${s.contract_details || ''}</div></td>
+                        <td class="text-center">
+                            <span class="badge ${s.payment_status === 'PAID' ? 'status-badge-paid' : ((s.payment_status === 'BAD DEBT' || s.payment_status === 'CANCELLED') ? 'status-badge-baddebt' : 'status-badge-pending')}">${s.payment_status}</span>
+                        </td>
+                        <td class="text-end fw-bold text-primary">${currSymbol} ${Math.round(s.total || 0).toLocaleString()}</td>
+                        <td class="text-end fw-bold text-success px-3">${currSymbol} ${Math.round(s.profit || 0).toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            setTimeout(() => {
+                if (skeleton) skeleton.style.display = 'none';
+            }, 300);
+        })
+        .catch(err => {
+            if (skeleton) skeleton.style.display = 'none';
+            showToast('Failed to load area snapshot: ' + err, 'error');
+        });
+}
+
+// Dynamic Backdrop, Cascade Modal Blur & Multi-Modal z-index Stacking Management
+const EXCLUSIVE_MODALS = {
+    'newContractModal': 'Entry Form',
+    'globalSearchModal': 'Global Search Form',
+    'supplyAreasModal': 'Supply Area Form'
+};
+
+document.addEventListener('show.bs.modal', function (event) {
+    const modal = event.target;
+    
+    // Prevent stacking of main exclusive forms
+    if (modal.id && EXCLUSIVE_MODALS[modal.id]) {
+        const openExclusive = Array.from(document.querySelectorAll('.modal')).find(m => 
+            m !== modal && (m.classList.contains('show') || m.style.display === 'block') && EXCLUSIVE_MODALS[m.id]
+        );
+        
+        if (openExclusive) {
+            // EXCEPTION: Allow Entry Form to stack over Global Search Form (for editing records)
+            if (modal.id === 'newContractModal' && openExclusive.id === 'globalSearchModal') {
+                // Allow stacking safely without preventing default
+            } else {
+                event.preventDefault(); // Stop the incoming modal from opening
+                showToast(`Please close the ${EXCLUSIVE_MODALS[openExclusive.id]} first before opening the ${EXCLUSIVE_MODALS[modal.id]}.`, 'error');
+                return; // Halt further execution
+            }
+        }
+    }
+    
+    // Ensure the incoming modal is not blurred
+    modal.classList.remove('modal-parent-blur');
+    
+    const openModals = Array.from(document.querySelectorAll('.modal')).filter(m => 
+        m !== modal && (m.classList.contains('show') || m.style.display === 'block')
+    );
+    
+    openModals.forEach(m => {
+        m.classList.add('modal-parent-blur');
+    });
+
+    if (openModals.length > 0) {
+        let maxZ = 1050;
+        openModals.forEach(m => {
+            const z = parseInt(window.getComputedStyle(m).zIndex) || 1050;
+            if (z > maxZ) {
+                maxZ = z;
+            }
+        });
+        
+        // Backup the original inline z-index before overriding to protect hardcoded styles
+        if (!modal.hasAttribute('data-original-zindex')) {
+            modal.setAttribute('data-original-zindex', modal.style.zIndex || '');
+        }
+        
+        // Elevate the current modal's z-index
+        const newModalZ = maxZ + 20;
+        modal.style.zIndex = newModalZ;
+    }
+});
+
+document.addEventListener('hide.bs.modal', function (event) {
+    const modal = event.target;
+    
+    // Instantly remove blur from the next topmost modal as soon as this one starts closing
+    const remainingOpen = Array.from(document.querySelectorAll('.modal')).filter(m => 
+        m !== modal && (m.classList.contains('show') || m.style.display === 'block')
+    );
+    
+    if (remainingOpen.length > 0) {
+        remainingOpen.sort((a, b) => {
+            const zA = parseInt(window.getComputedStyle(a).zIndex) || 1050;
+            const zB = parseInt(window.getComputedStyle(b).zIndex) || 1050;
+            return zA - zB;
+        });
+        const topmost = remainingOpen[remainingOpen.length - 1];
+        topmost.classList.remove('modal-parent-blur');
+    }
+});
+
+document.addEventListener('hidden.bs.modal', function (event) {
+    const modal = event.target;
+    
+    // Restore original inline z-index to prevent permanent inflation and protect hardcoded styles
+    if (modal.hasAttribute('data-original-zindex')) {
+        modal.style.zIndex = modal.getAttribute('data-original-zindex');
+        modal.removeAttribute('data-original-zindex');
+    }
+    
+    // Ensure blur class is fully removed
+    modal.classList.remove('modal-parent-blur');
+    
+    // Keep body scrolling locked if there are other open modals
+    const remainingOpen = Array.from(document.querySelectorAll('.modal')).filter(m => m.classList.contains('show') || m.style.display === 'block');
+    if (remainingOpen.length > 0) {
+        document.body.classList.add('modal-open');
+    }
+});
+
+// A MutationObserver to automatically and synchronously align backdrop z-indices with their modals
+(function() {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                // Detect when a backdrop is appended to the body
+                if (node.nodeType === 1 && node.classList.contains('modal-backdrop')) {
+                    // Find all currently visible modals
+                    const modals = Array.from(document.querySelectorAll('.modal')).filter(m => {
+                        return m.classList.contains('show') || m.style.display === 'block';
+                    });
+                    
+                    if (modals.length > 0) {
+                        // Sort them by their actual computed z-index
+                        modals.sort((a, b) => {
+                            const zA = parseInt(window.getComputedStyle(a).zIndex) || 1050;
+                            const zB = parseInt(window.getComputedStyle(b).zIndex) || 1050;
+                            return zA - zB;
+                        });
+                        
+                        // The topmost modal is the one with the highest z-index
+                        const topmostModal = modals[modals.length - 1];
+                        const topmostZ = parseInt(window.getComputedStyle(topmostModal).zIndex) || 1050;
+                        
+                        // Set the backdrop's z-index to be exactly 10 units below the topmost modal
+                        node.style.zIndex = topmostZ - 10;
+                    }
+                }
+            });
+        });
+    });
+    observer.observe(document.body, { childList: true });
+})();
+
+// ──────────────────────────────────────────────────────────────
+// NOTIFICATION DRAWER SYSTEM
+// ──────────────────────────────────────────────────────────────
+(function() {
+    // ── CSS (Light Theme) ─────────────────────────────────────
+    const drawerCSS = `
+        #cp-drawer-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.35);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            z-index: 99800;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            pointer-events: none;
+        }
+        #cp-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+        #cp-drawer {
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            width: 400px;
+            max-width: 100vw;
+            background: #ffffff;
+            z-index: 99900;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: -12px 0 48px rgba(0,0,0,0.12), -1px 0 0 #e2e8f0;
+        }
+        #cp-drawer.open { transform: translateX(0); }
+
+        #cp-drawer-header {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; gap: 12px;
+            flex-shrink: 0;
+            background: #f8fafc;
+        }
+        #cp-drawer-header-icon {
+            width: 38px; height: 38px; border-radius: 11px;
+            background: rgba(239,68,68,0.1);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        #cp-drawer-header-icon i { color: #ef4444; font-size: 1.1rem; }
+        #cp-drawer-title { font-weight: 800; font-size: 0.95rem; color: #0f172a; letter-spacing: -0.01em; }
+        #cp-drawer-subtitle { font-size: 0.75rem; color: #94a3b8; margin-top: 1px; }
+        #cp-drawer-close {
+            margin-left: auto; background: none; border: none;
+            color: #94a3b8; font-size: 1.1rem; cursor: pointer;
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, color 0.2s; flex-shrink: 0;
+        }
+        #cp-drawer-close:hover { background: #f1f5f9; color: #0f172a; }
+
+        #cp-drawer-body {
+            flex: 1; overflow-y: auto; padding: 14px;
+            display: flex; flex-direction: column; gap: 9px;
+            background: #f8fafc;
+        }
+        #cp-drawer-body::-webkit-scrollbar { width: 4px; }
+        #cp-drawer-body::-webkit-scrollbar-track { background: transparent; }
+        #cp-drawer-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        #cp-drawer-body::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+        .cp-alert-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            transition: box-shadow 0.2s, transform 0.2s;
+            text-decoration: none;
+        }
+        .cp-alert-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+            transform: translateY(-1px);
+        }
+        .cp-alert-strip { width: 4px; flex-shrink: 0; }
+        .cp-alert-inner { padding: 13px 14px; flex: 1; min-width: 0; }
+        .cp-alert-meta {
+            display: flex; align-items: center; gap: 7px; margin-bottom: 5px;
+        }
+        .cp-alert-cat {
+            font-size: 0.6rem; font-weight: 800; letter-spacing: 0.07em;
+            text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+        }
+        .cp-alert-title {
+            font-weight: 700; font-size: 0.85rem; color: #0f172a;
+            line-height: 1.3; margin-bottom: 4px;
+        }
+        .cp-alert-msg {
+            font-size: 0.78rem; color: #64748b; line-height: 1.5;
+            margin-bottom: 10px;
+        }
+        .cp-alert-resolve {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.73rem; font-weight: 700; text-decoration: none;
+            padding: 5px 11px; border-radius: 6px;
+            transition: filter 0.2s, transform 0.15s;
+        }
+        .cp-alert-resolve:hover { filter: brightness(0.92); transform: translateX(2px); }
+
+        #cp-drawer-empty {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: 40px 20px;
+        }
+        #cp-drawer-empty-icon {
+            width: 64px; height: 64px; border-radius: 20px;
+            background: #ecfdf5;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 16px;
+        }
+        #cp-drawer-empty-icon i { color: #10b981; font-size: 2rem; }
+
+        #cp-drawer-loader {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+        }
+        @keyframes cp-spin { to { transform: rotate(360deg); } }
+        .cp-spinner {
+            width: 28px; height: 28px; border-radius: 50%;
+            border: 3px solid #e2e8f0;
+            border-top-color: #4f46e5;
+            animation: cp-spin 0.7s linear infinite;
+        }
+    `;
+    const styleEl = document.createElement('style');
+    styleEl.textContent = drawerCSS;
+    document.head.appendChild(styleEl);
+
+    // ── HTML ─────────────────────────────────────────────────
+    const backdropEl = document.createElement('div');
+    backdropEl.id = 'cp-drawer-backdrop';
+    document.body.appendChild(backdropEl);
+
+    const drawerEl = document.createElement('div');
+    drawerEl.id = 'cp-drawer';
+    drawerEl.innerHTML = `
+        <div id="cp-drawer-header">
+            <div id="cp-drawer-header-icon"><i class="bi bi-bell-fill"></i></div>
+            <div>
+                <div id="cp-drawer-title">Action Alerts</div>
+                <div id="cp-drawer-subtitle">Loading…</div>
+            </div>
+            <button id="cp-drawer-close" title="Close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div id="cp-drawer-body">
+            <div id="cp-drawer-loader"><div class="cp-spinner"></div></div>
+        </div>
+    `;
+    document.body.appendChild(drawerEl);
+
+    // ── Severity map (light theme colours) ───────────────────
+    const SEV = {
+        'TAX RISK':       { color: '#ef4444', bg: '#fef2f2', text: '#dc2626' },
+        'DATA INTEGRITY': { color: '#ef4444', bg: '#fef2f2', text: '#dc2626' },
+        'COLLECTIONS':    { color: '#f59e0b', bg: '#fffbeb', text: '#d97706' },
+        'DEADLINE':       { color: '#f59e0b', bg: '#fffbeb', text: '#d97706' },
+        'ACCOUNTING':     { color: '#f59e0b', bg: '#fffbeb', text: '#d97706' },
+        'COMPLIANCE':     { color: '#3b82f6', bg: '#eff6ff', text: '#2563eb' },
+        'REGISTRY':       { color: '#3b82f6', bg: '#eff6ff', text: '#2563eb' },
+        'OPERATIONAL':    { color: '#8b5cf6', bg: '#f5f3ff', text: '#7c3aed' },
+    };
+
+    // ── Open / Close ─────────────────────────────────────────
+    let drawerOpen = false;
+    let drawerLoaded = false;
+
+    window.openAlertDrawer = function() {
+        backdropEl.classList.add('open');
+        drawerEl.classList.add('open');
+        drawerOpen = true;
+        document.body.style.overflow = 'hidden';
+        if (!drawerLoaded) loadAlerts();
+    };
+
+    window.closeAlertDrawer = function() {
+        backdropEl.classList.remove('open');
+        drawerEl.classList.remove('open');
+        drawerOpen = false;
+        document.body.style.overflow = '';
+    };
+
+    backdropEl.addEventListener('click', window.closeAlertDrawer);
+    document.getElementById('cp-drawer-close').addEventListener('click', window.closeAlertDrawer);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && drawerOpen) window.closeAlertDrawer();
+    });
+
+    // ── Load alerts from API ──────────────────────────────────
+    function loadAlerts() {
+        fetch('/api/alerts')
+            .then(r => r.json())
+            .then(data => renderAlerts(data.alerts || [], data.count || 0))
+            .catch(() => renderAlerts([], 0));
+    }
+
+    function renderAlerts(alerts, count) {
+        drawerLoaded = true;
+        const body = document.getElementById('cp-drawer-body');
+        const subtitle = document.getElementById('cp-drawer-subtitle');
+
+        if (count === 0) {
+            subtitle.textContent = 'All systems operational';
+            document.getElementById('cp-drawer-header-icon').style.background = '#ecfdf5';
+            document.getElementById('cp-drawer-header-icon').querySelector('i').style.color = '#10b981';
+            body.innerHTML = `
+                <div id="cp-drawer-empty">
+                    <div id="cp-drawer-empty-icon"><i class="bi bi-shield-fill-check"></i></div>
+                    <div style="font-weight:800;font-size:1rem;color:#0f172a;margin-bottom:6px;">All Clear</div>
+                    <div style="font-size:0.82rem;color:#94a3b8;line-height:1.6;">No active tax risks, overdue payments,<br>or compliance issues detected.</div>
+                </div>`;
+            return;
+        }
+
+        subtitle.textContent = `${count} item${count !== 1 ? 's' : ''} need${count === 1 ? 's' : ''} attention`;
+        body.innerHTML = '';
+
+        alerts.forEach(item => {
+            const s = SEV[item.category] || { color: '#64748b', bg: '#f8fafc', text: '#475569' };
+            const plainMsg = item.message.replace(/<[^>]*>/g, '');
+
+            const card = document.createElement('div');
+            card.className = 'cp-alert-card';
+            card.innerHTML = `
+                <div class="cp-alert-strip" style="background:${s.color};"></div>
+                <div class="cp-alert-inner">
+                    <div class="cp-alert-meta">
+                        <span class="cp-alert-cat" style="background:${s.bg};color:${s.text};">${item.category}</span>
+                    </div>
+                    <div class="cp-alert-title">${item.title}</div>
+                    <div class="cp-alert-msg">${plainMsg}</div>
+                    <a href="${item.link}" class="cp-alert-resolve"
+                       style="background:${s.bg};color:${s.text};"
+                       onclick="window.handleAlertResolve(event, '${item.category}', '${item.title.replace(/'/g, "\\'")}', '${item.link}')">
+                        Resolve <i class="bi bi-arrow-right" style="font-size:0.7rem;"></i>
+                    </a>
+                </div>`;
+            body.appendChild(card);
+        });
+    }
+
+    // ── Wire sidebar badge + Auto popup notification on database load ──────
+    document.addEventListener('DOMContentLoaded', () => {
+        const alertSpan = document.getElementById('sidebar-alert-badge');
+        if (alertSpan) {
+            alertSpan.style.cursor = 'pointer';
+            alertSpan.style.pointerEvents = 'none';
+        }
+
+        const alertCount = parseInt("{{ global_alert_count }}") || 0;
+        if (alertCount > 0 && !sessionStorage.getItem('action_center_notified')) {
+            sessionStorage.setItem('action_center_notified', 'true');
+            setTimeout(() => {
+                if (typeof window.showAlertToast === 'function') {
+                    window.showAlertToast(
+                        'Action Center Alerts',
+                        `You have ${alertCount} active notification(s) needing attention.`,
+                        'warning',
+                        'javascript:window.openAlertDrawer()',
+                        8000
+                    );
+                }
+            }, 1000);
+        }
+    });
+})();
+
+// ──────────────────────────────────────────────────────────────
+// GLOBAL ALERT TOAST NOTIFICATION SYSTEM
+
+
+
+
+// ──────────────────────────────────────────────────────────────
+// GLOBAL ALERT TOAST NOTIFICATION SYSTEM
+// ──────────────────────────────────────────────────────────────
+(function() {
+    // Inject toast container into DOM once
+    function ensureToastContainer() {
+        let container = document.getElementById('cp-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'cp-toast-container';
+            container.style.cssText = [
+                'position:fixed',
+                'bottom:28px',
+                'right:28px',
+                'z-index:99990',
+                'display:flex',
+                'flex-direction:column-reverse',
+                'gap:10px',
+                'pointer-events:none',
+                'max-width:400px',
+                'width:calc(100% - 56px)'
+            ].join(';');
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    const SEVERITY = {
+        danger:  { icon: 'bi-exclamation-triangle-fill', color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  label: 'Critical' },
+        warning: { icon: 'bi-clock-fill',                color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', label: 'Warning'  },
+        info:    { icon: 'bi-info-circle-fill',           color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', label: 'Info'     },
+        success: { icon: 'bi-shield-fill-check',          color: '#10b981', bg: 'rgba(16,185,129,0.12)', label: 'OK'       }
+    };
+
+    window.showAlertToast = function(title, message, severity, link, duration) {
+        severity = severity || 'info';
+        duration = duration || 6000;
+        const s = SEVERITY[severity] || SEVERITY.info;
+        const container = ensureToastContainer();
+
+        const toast = document.createElement('div');
+        toast.style.cssText = [
+            'background:rgba(15,23,42,0.96)',
+            'backdrop-filter:blur(16px)',
+            '-webkit-backdrop-filter:blur(16px)',
+            'border:1px solid rgba(255,255,255,0.09)',
+            'border-radius:14px',
+            'box-shadow:0 20px 40px -10px rgba(0,0,0,0.55),0 8px 16px -8px rgba(0,0,0,0.3)',
+            'width:100%',
+            'overflow:hidden',
+            'pointer-events:auto',
+            'transform:translateX(110%)',
+            'opacity:0',
+            'transition:transform 0.42s cubic-bezier(0.16,1,0.3,1),opacity 0.42s cubic-bezier(0.16,1,0.3,1)'
+        ].join(';');
+
+        // Left accent strip
+        const accent = document.createElement('div');
+        accent.style.cssText = `position:absolute;left:0;top:0;bottom:0;width:4px;background:${s.color};border-radius:14px 0 0 14px;`;
+
+        // Body
+        const body = document.createElement('div');
+        body.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:14px 16px 14px 20px;';
+
+        // Icon
+        const iconWrap = document.createElement('div');
+        iconWrap.style.cssText = `width:34px;height:34px;border-radius:10px;background:${s.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;`;
+        iconWrap.innerHTML = `<i class="bi ${s.icon}" style="font-size:1.1rem;color:${s.color};"></i>`;
+
+        // Text block
+        const textBlock = document.createElement('div');
+        textBlock.style.cssText = 'flex:1;min-width:0;';
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-weight:700;font-size:0.88rem;color:#ffffff;margin-bottom:3px;line-height:1.3;';
+        titleEl.textContent = title;
+        const msgEl = document.createElement('div');
+        msgEl.style.cssText = 'font-size:0.8rem;color:#94a3b8;line-height:1.4;';
+        msgEl.textContent = message;
+        textBlock.appendChild(titleEl);
+        textBlock.appendChild(msgEl);
+        if (link) {
+            const linkEl = document.createElement('a');
+            linkEl.href = link;
+            linkEl.style.cssText = `font-size:0.75rem;font-weight:700;color:${s.color};text-decoration:none;display:inline-block;margin-top:5px;letter-spacing:0.02em;`;
+            linkEl.textContent = 'View Details →';
+            linkEl.addEventListener('click', (e) => {
+                if (link.startsWith('javascript:')) {
+                    e.preventDefault();
+                    const js = link.substring('javascript:'.length);
+                    new Function(js)();
+                }
+                dismissToast(toast, progressInterval);
+            });
+            textBlock.appendChild(linkEl);
+        }
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'background:none;border:none;color:#475569;font-size:1.1rem;padding:0;cursor:pointer;flex-shrink:0;line-height:1;margin-top:1px;transition:color 0.2s;';
+        closeBtn.innerHTML = '<i class="bi bi-x"></i>';
+        closeBtn.addEventListener('mouseenter', () => closeBtn.style.color = '#f8fafc');
+        closeBtn.addEventListener('mouseleave', () => closeBtn.style.color = '#475569');
+        closeBtn.addEventListener('click', () => dismissToast(toast, progressInterval));
+
+        body.appendChild(iconWrap);
+        body.appendChild(textBlock);
+        body.appendChild(closeBtn);
+
+        // Progress bar
+        const progressWrap = document.createElement('div');
+        progressWrap.style.cssText = 'height:3px;background:rgba(255,255,255,0.06);';
+        const progressBar = document.createElement('div');
+        progressBar.style.cssText = `height:100%;width:100%;background:${s.color};opacity:0.7;transition:width ${duration}ms linear;border-radius:0 0 14px 0;`;
+        progressWrap.appendChild(progressBar);
+
+        toast.appendChild(accent);
+        toast.appendChild(body);
+        toast.appendChild(progressWrap);
+        container.appendChild(toast);
+
+        // Animate in
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                toast.style.transform = 'translateX(0)';
+                toast.style.opacity = '1';
+                // Start progress drain
+                setTimeout(() => { progressBar.style.width = '0%'; }, 50);
+            });
+        });
+
+        const progressInterval = setTimeout(() => dismissToast(toast, null), duration);
+
+        function dismissToast(el, timer) {
+            if (timer) clearTimeout(timer);
+            el.style.transform = 'translateX(110%)';
+            el.style.opacity = '0';
+            setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
+        }
+    };
+})();
+// ──────────────────────────────────────────────────────────────
+// QUICK RESOLVE INTERACTIVE MODAL & HANDLERS
+// ──────────────────────────────────────────────────────────────
+(function() {
+    window.handleAlertResolve = function(evt, category, title, link) {
+        if (evt) {
+            evt.preventDefault();
+            evt.stopPropagation();
+        }
+        if (typeof window.closeAlertDrawer === 'function') {
+            window.closeAlertDrawer();
+        }
+        window.openQuickResolveModal(category, title, link);
+    };
+
+    window.openQuickResolveModal = function(category, title, link) {
+        const modalEl = document.getElementById('quickResolveModal');
+        if (!modalEl) {
+            window.location.href = link;
+            return;
+        }
+
+        const catBadge = document.getElementById('quickResolveCategory');
+        const titleEl  = document.getElementById('quickResolveTitle');
+        const bodyEl   = document.getElementById('quickResolveBody');
+        const fullBtn  = document.getElementById('quickResolveFullViewBtn');
+
+        if (catBadge) catBadge.textContent = category;
+        if (titleEl)  titleEl.textContent  = title;
+        if (fullBtn)  fullBtn.href          = link;
+
+        const SEV_MAP = {
+            'TAX RISK':       { bg: '#fef2f2', text: '#dc2626', icon: 'bi-exclamation-triangle-fill' },
+            'DATA INTEGRITY': { bg: '#fef2f2', text: '#dc2626', icon: 'bi-calendar-x-fill' },
+            'COLLECTIONS':    { bg: '#fffbeb', text: '#d97706', icon: 'bi-clock-fill' },
+            'DEADLINE':       { bg: '#fffbeb', text: '#d97706', icon: 'bi-calendar-event-fill' },
+            'ACCOUNTING':     { bg: '#fffbeb', text: '#d97706', icon: 'bi-files' },
+            'COMPLIANCE':     { bg: '#eff6ff', text: '#2563eb', icon: 'bi-person-badge-fill' },
+            'REGISTRY':       { bg: '#eff6ff', text: '#2563eb', icon: 'bi-file-earmark-spreadsheet-fill' },
+            'OPERATIONAL':    { bg: '#f5f3ff', text: '#7c3aed', icon: 'bi-folder-symlink-fill' }
+        };
+
+        const s = SEV_MAP[category] || { bg: '#eef2ff', text: '#4338ca', icon: 'bi-tools' };
+        const iconWrap = document.getElementById('quickResolveIconWrap');
+        const iconEl   = document.getElementById('quickResolveIcon');
+        if (iconWrap) {
+            iconWrap.style.background = s.bg;
+            iconWrap.style.color = s.text;
+        }
+        if (iconEl) {
+            iconEl.className = `bi ${s.icon}`;
+        }
+
+        bodyEl.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">Loading resolution details…</div></div>`;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        fetch('/api/alerts')
+            .then(r => r.json())
+            .then(data => {
+                const alertItem = (data.alerts || []).find(a => a.category === category || a.title === title);
+                renderQuickResolveContent(category, title, alertItem, link);
+            })
+            .catch(() => {
+                renderQuickResolveContent(category, title, null, link);
+            });
+    };
+
+    function renderQuickResolveContent(category, title, alertItem, link) {
+        const bodyEl = document.getElementById('quickResolveBody');
+        if (!bodyEl) return;
+
+        let html = ``;
+        if (alertItem && alertItem.message) {
+            html += `<div class="alert border-0 p-3 mb-3" style="background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0 !important;">
+                <div class="d-flex align-items-center gap-2 mb-1 fw-bold text-dark" style="font-size:0.88rem;">
+                    <i class="bi bi-info-circle-fill text-primary"></i> Action Overview
+                </div>
+                <div class="text-muted small" style="font-size:0.83rem;line-height:1.5;">${alertItem.message}</div>
+            </div>`;
+        }
+
+        html += `<div class="mb-3">
+            <h6 class="fw-bold text-dark mb-1" style="font-size:0.9rem;">Resolution Options</h6>
+            <p class="text-muted small mb-3" style="font-size:0.82rem;">Choose how you want to resolve this action item:</p>
+        </div>`;
+
+        html += `<div class="d-flex flex-column gap-3">
+            <div class="p-3 border rounded-3 d-flex align-items-center justify-content-between bg-white shadow-sm" style="border-radius:14px !important;">
+                <div class="pe-3">
+                    <div class="fw-bold text-dark mb-1" style="font-size:0.88rem;"><i class="bi bi-funnel-fill text-primary me-1"></i> Option 1: Open Scoped Interactive View</div>
+                    <div class="text-muted small" style="font-size:0.8rem;">Open the reports or registry view pre-filtered specifically for these affected records.</div>
+                </div>
+                <a href="${link}" class="btn btn-sm btn-primary fw-bold px-3 py-2 flex-shrink-0" style="border-radius:8px;" onclick="bootstrap.Modal.getInstance(document.getElementById('quickResolveModal')).hide()">
+                    Open Filtered View <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+            
+            <div class="p-3 border rounded-3 d-flex align-items-center justify-content-between bg-white shadow-sm" style="border-radius:14px !important;">
+                <div class="pe-3">
+                    <div class="fw-bold text-dark mb-1" style="font-size:0.88rem;"><i class="bi bi-search text-secondary me-1"></i> Option 2: Search & Edit Entry Directly</div>
+                    <div class="text-muted small" style="font-size:0.8rem;">Open Global Search to locate a specific entry ID or invoice number and edit it directly.</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3 py-2 flex-shrink-0" style="border-radius:8px;" onclick="bootstrap.Modal.getInstance(document.getElementById('quickResolveModal')).hide(); if(typeof openSearchModal==='function') openSearchModal();">
+                    Open Search <i class="bi bi-search ms-1"></i>
+                </button>
+            </div>
+        </div>`;
+
+        bodyEl.innerHTML = html;
+    }
+})();
+</script>
+
+<!-- Quick Resolve Interactive Modal -->
+<div class="modal fade" id="quickResolveModal" tabindex="-1" aria-hidden="true" style="z-index: 99995;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden; background: #ffffff;">
+            <div class="modal-header border-0 p-4" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0 !important;">
+                <div class="d-flex align-items-center gap-3">
+                    <div id="quickResolveIconWrap" class="rounded-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; flex-shrink: 0; background: #eff6ff; color: #2563eb;">
+                        <i id="quickResolveIcon" class="bi bi-shield-exclamation" style="font-size: 1.3rem;"></i>
+                    </div>
+                    <div>
+                        <span id="quickResolveCategory" class="badge bg-primary bg-opacity-10 text-primary text-uppercase mb-1" style="font-size: 0.65rem; font-weight: 800; letter-spacing: 0.06em;">ACTION ITEM</span>
+                        <h5 class="modal-title fw-bold mb-0 text-dark" id="quickResolveTitle" style="font-size: 1.05rem;">Resolve Issue</h5>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="quickResolveBody" style="max-height: 60vh; overflow-y: auto;">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 text-muted small">Loading resolution details…</div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3 bg-light d-flex justify-content-between">
+                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold px-3" data-bs-dismiss="modal" style="border-radius: 10px;">Close</button>
+                <a id="quickResolveFullViewBtn" href="#" class="btn btn-sm btn-primary fw-bold px-4" style="border-radius: 10px;" onclick="bootstrap.Modal.getInstance(document.getElementById('quickResolveModal')).hide()">
+                    Go to Full Report View <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

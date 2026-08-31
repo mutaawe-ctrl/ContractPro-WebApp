@@ -1,0 +1,8 @@
+flask
+fpdf
+pywebview
+pandas
+openpyxl
+google-cloud-storage
+authlib
+requests

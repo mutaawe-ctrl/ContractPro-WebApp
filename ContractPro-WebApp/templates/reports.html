@@ -1,0 +1,2043 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Financial Reporting</h2>
+        <p class="text-muted mb-0">Filter records, review financial summaries, and generate demand notes.</p>
+    </div>
+</div>
+
+<style>
+    .btn-modern-primary {
+        background: #2563eb !important; color: white !important;
+        border: none !important; border-radius: 10px !important;
+        font-weight: 600 !important; transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-primary:hover { background: #1d4ed8 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.25) !important; }
+
+    .btn-modern-success {
+        background: #10b981 !important; color: white !important;
+        border: none !important; border-radius: 10px !important;
+        font-weight: 600 !important; transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-success:hover { background: #059669 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.25) !important; }
+
+    /* Reset All gets a premium slate/steel tone */
+    .btn-modern-reset {
+        background: #64748b !important; color: #fff !important;
+        border: none !important; border-radius: 10px !important;
+        font-weight: 700 !important; transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-reset:hover { background: #475569 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(100,116,139,0.3) !important; }
+
+    .btn-modern-neutral {
+        background: #e2e8f0 !important; color: #475569 !important;
+        border: none !important; border-radius: 10px !important;
+        font-weight: 600 !important; transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-neutral:hover { background: #cbd5e1 !important; color: #1e293b !important; transform: translateY(-1px); }
+
+
+
+    .fw-black { font-weight: 800; }
+    .fw-extrabold { font-weight: 750; }
+    .text-emerald { color: #047857; }
+
+    /* Local URA Card Themes and Shadows */
+    .kpi-ura-due {
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+    }
+    .kpi-ura-due:hover {
+        box-shadow: 0 16px 32px -6px rgba(185, 28, 28, 0.45) !important;
+    }
+    .kpi-ura-not-due {
+        background: linear-gradient(135deg, #f97316 0%, #c2410c 100%) !important;
+    }
+    .kpi-ura-not-due:hover {
+        box-shadow: 0 16px 32px -6px rgba(194, 65, 12, 0.45) !important;
+    }
+    .kpi-ura-paid {
+        background: linear-gradient(135deg, #10b981 0%, #047857 100%) !important;
+    }
+    .kpi-ura-paid:hover {
+        box-shadow: 0 16px 32px -6px rgba(16, 185, 129, 0.45) !important;
+    }
+    .kpi-ura-offset {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+    }
+    .kpi-ura-offset:hover {
+        box-shadow: 0 16px 32px -6px rgba(29, 78, 216, 0.45) !important;
+    }
+    
+    /* Interactive active filter states for KPI cards */
+    .report-kpi-card {
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 2px solid transparent !important;
+    }
+    .report-kpi-card.active-filter {
+        transform: scale(1.03) translateY(-4px);
+        border: 2px solid #ffffff !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35) !important;
+    }
+
+    /* Highlight style for UNPAID URA + PAID client payment (DUE) */
+    .ura-row-due {
+        background-color: rgba(239, 68, 68, 0.02) !important;
+    }
+    .ura-row-due td {
+        background-color: rgba(239, 68, 68, 0.02) !important;
+    }
+    .ura-row-due:hover td {
+        background-color: rgba(239, 68, 68, 0.05) !important;
+    }
+
+    .py-1\.5  { padding-top: .625rem !important; padding-bottom: .625rem !important; }
+    .py-1\.25 { padding-top: .5rem !important;   padding-bottom: .5rem !important; }
+    .px-2\.5  { padding-left: .875rem !important; padding-right: .875rem !important; }
+    .amount-col { font-family: 'Inter', monospace; font-weight: 700; letter-spacing: -0.01em; }
+
+    /* Local modern table adjustments */
+    .modern-table { font-size: 0.88rem !important; }
+
+    /* Collapsible Filter Section Animation */
+    .filter-collapse-container {
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin-top 0.3s ease;
+    }
+    .filter-collapse-container.show {
+        max-height: 500px; /* large enough to contain all filter rows */
+        opacity: 1;
+        margin-top: 15px;
+    }
+
+    .table-responsive::-webkit-scrollbar        { width: 10px; height: 10px; }
+    .table-responsive::-webkit-scrollbar-track  { background: #f8fafc; border-radius: 10px; }
+    .table-responsive::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 10px; border: 2.5px solid #f8fafc; transition: all 0.3s; }
+    .table-responsive::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* URA Section: clean frozen columns — no separator, high z-index to prevent bleed-through */
+    #uraTableWrapper {
+        position: relative;
+        contain: paint; /* force immediate compositing when tab becomes visible */
+    }
+    #uraTableWrapper thead {
+        position: static !important;
+    }
+    #uraTableWrapper thead th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 30 !important;
+        background-color: #f8fafc !important;
+    }
+    #uraTableWrapper .sticky-col-1 {
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 20 !important;
+        background-color: #ffffff !important;
+        box-shadow: none !important;
+        border-right: none !important;
+        width: 125px !important;
+        min-width: 125px !important;
+        max-width: 125px !important;
+    }
+    #uraTableWrapper .sticky-col-2 {
+        position: sticky !important;
+        left: 125px !important;
+        z-index: 19 !important;
+        background-color: #ffffff !important;
+        box-shadow: none !important;
+        border-left: none !important;
+    }
+    #uraTableWrapper tr.high-risk-row .sticky-col-1,
+    #uraTableWrapper tr.high-risk-row .sticky-col-2 {
+        background-color: #fdf2f2 !important;
+    }
+    #uraTableWrapper tr.high-risk-row:hover .sticky-col-1,
+    #uraTableWrapper tr.high-risk-row:hover .sticky-col-2 {
+        background-color: #fcebeb !important;
+    }
+    #uraTableWrapper tr:hover .sticky-col-1,
+    #uraTableWrapper tr:hover .sticky-col-2 {
+        background-color: #f8fafc !important;
+    }
+    #uraTableWrapper thead .sticky-col-1 {
+        z-index: 60 !important;
+        background-color: #f8fafc !important;
+        border-right: none !important;
+    }
+    #uraTableWrapper thead .sticky-col-2 {
+        z-index: 59 !important;
+        background-color: #f8fafc !important;
+        border-left: none !important;
+    }
+
+    [aria-expanded="true"] #rptCollapseChevron { transform: rotate(180deg) !important; }
+    #rptCollapseChevron { transition: transform 0.2s; }
+
+    .column-toggle-item { transition: all 0.15s ease-in-out; }
+    .column-toggle-item:hover { background-color: #f1f5f9 !important; }
+    .column-toggle-checkbox:checked { background-color: #2563eb !important; border-color: #2563eb !important; }
+
+    .hover-grow { transition: transform 0.2s, box-shadow 0.2s; }
+    .hover-grow:hover { transform: translateY(-1.5px); }
+
+    /* URA Section: clean borders */
+    #uraTable { border-collapse: separate; border-spacing: 0; }
+
+    /* URA Status Pills */
+    .ura-pill { min-width: 95px; padding: 6px 10px; font-size: 0.75rem; text-transform: uppercase; font-weight: 700; display: inline-block; text-align: center; border-radius: 6px; letter-spacing: 0.05em; }
+
+    /* URA high-risk rows */
+    .high-risk-row { background: rgba(220, 38, 38, 0.04) !important; }
+    .high-risk-row:hover { background: rgba(220, 38, 38, 0.08) !important; }
+
+    /* ── URA TABLE: Fix blank/ghost cells caused by tab-pane deferred paint ──
+       `position: sticky` creates compositing layers on col-1/col-2. When the
+       tab-pane starts hidden (display:none → fade-in), the browser skips
+       painting non-sticky tds during initial layout. Hover forces a repaint
+       which is why cells appear blank until hovered. The fix: set explicit
+       background on every td in the URA table body unconditionally, and force
+       a GPU layer on tbody so compositing happens immediately on tab open. */
+    #uraTable tbody {
+        transform: translateZ(0); /* promote tbody to its own GPU layer */
+    }
+    #uraTable tbody td {
+        background-color: #ffffff;
+    }
+    #uraTable tbody tr.high-risk-row td {
+        background-color: rgba(220, 38, 38, 0.04);
+    }
+    #uraTable tbody tr:hover td {
+        background-color: #f8fafc !important;
+    }
+    #uraTable tbody tr.high-risk-row:hover td {
+        background-color: rgba(220, 38, 38, 0.08) !important;
+    }
+    @keyframes ura-icon-pulse {
+        0%, 100% { opacity:1; transform: scale(1); }
+        50% { opacity:0.6; transform: scale(1.2); }
+    }
+    .ura-risk-icon { animation: ura-icon-pulse 1.4s ease-in-out infinite; color: #dc2626; margin-left: 5px; font-size: 0.83rem; vertical-align: middle; }
+
+    /* URA row selected highlight */
+    #uraTable tbody tr.ura-selected { background: rgba(37, 99, 235, 0.06) !important; outline: 1px solid rgba(37,99,235,0.18); }
+
+    /* URA print styles */
+    @media print {
+        body > :not(#ura-print-area) { display: none !important; }
+        #ura-print-area { display: block !important; padding: 20px; font-family: 'Inter', sans-serif; font-size: 11px; }
+        @page { size: A3 landscape; margin: 10mm; }
+        
+        #ura-print-area h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+        #ura-print-area .kpi-row { display: flex; gap: 12px; margin-bottom: 20px; }
+        #ura-print-area .kpi-box { flex: 1; border-radius: 10px; padding: 12px 16px; color: #fff; }
+        #ura-print-area table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        #ura-print-area th { background: #f1f5f9; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 8px 6px; border: 1px solid #e2e8f0; font-size: 9px; }
+        #ura-print-area td { padding: 7px 6px; border: 1px solid #f1f5f9; vertical-align: middle; }
+        #ura-print-area tr:nth-child(even) { background: #fafafa; }
+        #ura-print-area .badge { border-radius: 4px; padding: 2px 6px; font-size: 9px; font-weight: 700; color: #fff; display: inline-block; }
+        #ura-print-area .ura-pill { min-width: 80px; padding: 4px 8px; font-size: 8px; text-transform: uppercase; font-weight: 700; display: inline-block; text-align: center; border-radius: 4px; letter-spacing: 0.05em; color: #fff; }
+        #ura-print-area .bg-danger { background: #dc2626 !important; -webkit-print-color-adjust: exact; } 
+        #ura-print-area .bg-success { background: #16a34a !important; -webkit-print-color-adjust: exact; } 
+        #ura-print-area .bg-primary { background: #2563eb !important; -webkit-print-color-adjust: exact; } 
+        #ura-print-area .bg-secondary { background: #6b7280 !important; -webkit-print-color-adjust: exact; }
+        #ura-print-area .high-risk { background: rgba(220,38,38,0.06) !important; -webkit-print-color-adjust: exact; }
+        
+        #ura-print-area #uraTableWrapper { max-height: none !important; overflow: visible !important; border: none !important; }
+        #ura-print-area .sticky-col-1, #ura-print-area .sticky-col-2 { position: static !important; box-shadow: none !important; border: 1px solid #f1f5f9 !important; }
+        #ura-print-area thead { position: static !important; }
+    }
+    @media screen {
+        #ura-print-area { display: none !important; }
+    }
+
+    /* Premium Modern Tab Selector */
+    .modern-tabs-nav {
+        background: #f1f5f9;
+        padding: 5px;
+        border-radius: 14px;
+        display: flex;
+        width: 100%;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+    .modern-tabs-nav .nav-item {
+        margin: 0;
+        flex: 1;
+    }
+    .modern-tabs-nav .nav-link {
+        color: #64748b !important;
+        font-weight: 700 !important;
+        font-size: 0.88rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+        padding: 10px 24px !important;
+        border-radius: 10px !important;
+        border: none !important;
+        background: transparent !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        white-space: nowrap !important;
+    }
+    .modern-tabs-nav .nav-link:hover {
+        color: #1e293b !important;
+    }
+    .modern-tabs-nav .nav-link.active {
+        color: #2563eb !important;
+        background: #ffffff !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+    }
+    .btn-modern-indigo {
+        background: #4f46e5 !important; color: white !important;
+        border: none !important; border-radius: 10px !important;
+        font-weight: 600 !important; transition: all 0.2s ease-in-out !important;
+    }
+    .btn-modern-indigo:hover { background: #4338ca !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,70,229,0.25) !important; }
+</style>
+
+
+<!-- ======== KPI CARDS + TABLE ======== -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card p-4 border-0 shadow-sm" style="border-radius: 16px !important;">
+
+            <div class="d-flex mb-4">
+                {% set active_tab = request.args.get('tab', 'payments' if 'pay_start' in request.args else 'contracts') %}
+                <ul class="nav modern-tabs-nav" id="reportTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ 'active' if active_tab == 'contracts' else '' }}" id="contracts-tab" data-bs-toggle="pill" data-bs-target="#contracts-pane" type="button" role="tab" aria-controls="contracts-pane" aria-selected="{{ 'true' if active_tab == 'contracts' else 'false' }}">
+                            <i class="bi bi-file-earmark-text me-2"></i>ENTRIES SECTION
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ 'active' if active_tab == 'demands' else '' }}" id="demands-tab" data-bs-toggle="pill" data-bs-target="#demands-pane" type="button" role="tab" aria-controls="demands-pane" aria-selected="{{ 'true' if active_tab == 'demands' else 'false' }}">
+                            <i class="bi bi-file-earmark-check me-2"></i>DEMAND NOTES
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ 'active' if active_tab == 'payments' else '' }}" id="payments-tab" data-bs-toggle="pill" data-bs-target="#payments-pane" type="button" role="tab" aria-controls="payments-pane" aria-selected="{{ 'true' if active_tab == 'payments' else 'false' }}">
+                            <i class="bi bi-cash-stack me-2"></i>PAYMENTS MADE
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ 'active' if active_tab == 'ura' else '' }}" id="ura-tab" data-bs-toggle="pill" data-bs-target="#ura-pane" type="button" role="tab" aria-controls="ura-pane" aria-selected="{{ 'true' if active_tab == 'ura' else 'false' }}">
+                            <i class="bi bi-receipt-cutoff me-2"></i>URA SECTION
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tab-content" id="reportTabsContent">
+                <!-- Tab 1: Contracts & Invoices -->
+                <div class="tab-pane fade {{ 'show active' if active_tab == 'contracts' else '' }}" id="contracts-pane" role="tabpanel" aria-labelledby="contracts-tab">
+                    
+                    <!-- Organized Premium Filter Section -->
+                    <div id="rptFilterForm" class="mb-4">
+                        <div class="bg-white rounded-3 shadow-sm border p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2" id="reportsFilterHeader" style="cursor: pointer; user-select: none;" title="Tap to expand/collapse filters">
+                                <h6 class="fw-bold mb-0 text-slate-800 d-flex align-items-center">
+                                    <i class="bi bi-funnel-fill text-primary me-2"></i> Registry Filters
+                                    <span class="text-muted fw-normal ms-2" style="font-size: 0.75rem;">(Tap to toggle)</span>
+                                </h6>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" onclick="event.stopPropagation(); clearAllReportFilters()" id="rptClearAllBtn" class="btn btn-sm btn-light fw-bold text-muted px-3 py-1 d-none" style="border-radius: 8px; font-size: 0.75rem; border: 1px solid #e2e8f0; transition: all 0.2s;">
+                                        <i class="bi bi-x-circle me-1"></i>Clear All
+                                    </button>
+                                    <i class="bi bi-chevron-down ms-2 text-muted" id="reportsFilterChevron" style="transition: transform 0.25s ease;"></i>
+                                </div>
+                            </div>
+                            
+                            <div class="filter-collapse-container" id="reportsFilterChipsCollapse">
+                                <div class="d-flex flex-wrap gap-2 w-100" id="filterChipsContainer">
+                                
+                                <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+                                    <select id="rpt_filter_client" class="filter-chip text-truncate w-100" onchange="applyReportFilters(this)">
+                                        <option value="">Client: All</option>
+                                        {% for c in clients %}
+                                        <option value="{{ c.id }}">{{ c.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+                                    <select id="rpt_filter_area" class="filter-chip text-truncate w-100" onchange="applyReportFilters(this)">
+                                        <option value="">Area: All</option>
+                                        {% for a in areas %}
+                                        <option value="{{ a.id }}">{{ a.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+                                    <select id="rpt_filter_type" class="filter-chip text-truncate w-100" onchange="applyReportFilters(this)">
+                                        <option value="">Type: All</option>
+                                        {% for t in all_types %}
+                                            <option value="{{ t }}">{{ t }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+                                    <select id="rpt_filter_status" class="filter-chip text-truncate w-100" onchange="applyReportFilters(this)">
+                                        <option value="">Status: All</option>
+                                        <option value="PAID">PAID</option>
+                                        <option value="NOT PAID">NOT PAID</option>
+                                        <option value="BAD DEBT">BAD DEBT</option>
+                                    </select>
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper" style="flex: 1 1 18%; min-width: 130px;">
+                                    <select id="rpt_filter_ownership" class="filter-chip text-truncate w-100" onchange="applyReportFilters(this)">
+                                        <option value="">Ownership: All</option>
+                                        <option value="Owned">OWNED</option>
+                                        <option value="Not Owned">NOT OWNED</option>
+                                    </select>
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+                                    <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">From</span>
+                                    <input type="date" id="rpt_filter_start" class="filter-chip px-2 w-100" onchange="applyReportFilters(this)">
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+                                    <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">To</span>
+                                    <input type="date" id="rpt_filter_end" class="filter-chip px-2 w-100" onchange="applyReportFilters(this)">
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+
+                                <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+                                    <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">Min</span>
+                                    <input type="number" id="rpt_filter_min" class="filter-chip px-2 w-100" placeholder="Amount" oninput="debounceReportFilter(this)">
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                                <div class="filter-chip-wrapper d-flex align-items-center gap-1" style="flex: 1 1 18%; min-width: 150px;">
+                                    <span class="text-muted fw-bold" style="font-size: 0.72rem; text-transform: uppercase;">Max</span>
+                                    <input type="number" id="rpt_filter_max" class="filter-chip px-2 w-100" placeholder="Amount" oninput="debounceReportFilter(this)">
+                                    <i class="bi bi-x-circle-fill filter-chip-clear" onclick="clearReportFilterIcon(this)"></i>
+                                </div>
+                                
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                    <script>
+                    function formatNum(num) {
+                        return Math.round(parseFloat(num) || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                    }
+                    
+                    let reportDebounceTimer;
+                    function debounceReportFilter(el) {
+                        if (el.value.trim() !== '') el.classList.add('active');
+                        else el.classList.remove('active');
+                        clearTimeout(reportDebounceTimer);
+                        reportDebounceTimer = setTimeout(() => applyReportFilters(), 150);
+                    }
+
+                    function clearReportFilterIcon(iconEl) {
+                        const wrapper = iconEl.closest('.filter-chip-wrapper');
+                        const input = wrapper.querySelector('select, input');
+                        if (input) {
+                            input.value = '';
+                            input.classList.remove('active');
+                            applyReportFilters();
+                        }
+                    }
+
+                    function clearAllReportFilters() {
+                        document.querySelectorAll('#rptFilterForm .filter-chip').forEach(el => {
+                            el.value = '';
+                            el.classList.remove('active');
+                        });
+                        applyReportFilters();
+                    }
+
+                    function applyReportFilters(changedEl) {
+                        if (changedEl) {
+                            if (changedEl.value.trim() !== '') changedEl.classList.add('active');
+                            else changedEl.classList.remove('active');
+                        }
+                        
+                        const activeCount = document.querySelectorAll('#rptFilterForm .filter-chip.active').length;
+                        const clearAllBtn = document.getElementById('rptClearAllBtn');
+                        if (clearAllBtn) {
+                            clearAllBtn.classList.toggle('d-none', activeCount === 0);
+                        }
+
+                        const clientId = document.getElementById('rpt_filter_client').value;
+                        const areaId = document.getElementById('rpt_filter_area').value;
+                        const type = document.getElementById('rpt_filter_type').value.toLowerCase();
+                        const status = document.getElementById('rpt_filter_status').value.toUpperCase();
+                        const ownership = document.getElementById('rpt_filter_ownership').value.toUpperCase();
+                        const startDate = document.getElementById('rpt_filter_start').value;
+                        const endDate = document.getElementById('rpt_filter_end').value;
+                        const minAmount = parseFloat(document.getElementById('rpt_filter_min').value);
+                        const maxAmount = parseFloat(document.getElementById('rpt_filter_max').value);
+
+                        const table = document.getElementById('reportTable');
+                        const tbody = table.querySelector('tbody') || table;
+                        
+                        // Transition effect
+                        table.style.transition = 'opacity 0.2s ease-out';
+                        table.style.opacity = '0.3';
+
+                        setTimeout(() => {
+                            const rows = tbody.querySelectorAll('tr.registry-row');
+                            let visibleCount = 0;
+                            let sumRev = 0, sumPaid = 0, sumUnpaid = 0, sumProfit = 0;
+
+                            rows.forEach(row => {
+                                const rClient = row.getAttribute('data-client-id') || '';
+                                const rArea = row.getAttribute('data-area-id') || '';
+                                const rType = (row.getAttribute('data-contract-type') || '').toLowerCase();
+                                const rStatus = (row.getAttribute('data-status') || '').toUpperCase();
+                                const rOwnership = (row.getAttribute('data-ownership') || '').toUpperCase();
+                                const rDate = row.getAttribute('data-completion-date') || '';
+                                const rTotal = parseFloat(row.getAttribute('data-total')) || 0;
+                                const rProfit = parseFloat(row.getAttribute('data-profit')) || 0;
+
+                                let show = true;
+                                if (clientId && rClient !== clientId) show = false;
+                                if (show && areaId && rArea !== areaId) show = false;
+                                if (show && type && rType !== type) show = false;
+                                if (show && status && rStatus !== status) show = false;
+                                if (show && ownership && rOwnership !== ownership) show = false;
+                                if (show && startDate && rDate && rDate < startDate) show = false;
+                                if (show && endDate && rDate && rDate > endDate) show = false;
+                                if (show && !isNaN(minAmount) && rTotal < minAmount) show = false;
+                                if (show && !isNaN(maxAmount) && rTotal > maxAmount) show = false;
+
+                                if (show) {
+                                    row.style.display = '';
+                                    visibleCount++;
+                                    
+                                    // Update stats only for active items (exclude cancelled/bad debt if not owned)
+                                    if (rStatus !== 'BAD DEBT' && rStatus !== 'CANCELLED' && rOwnership !== 'NOT OWNED') {
+                                        sumRev += rTotal;
+                                        sumProfit += rProfit;
+                                        if (rStatus === 'PAID') sumPaid += rTotal;
+                                        else if (rStatus === 'NOT PAID') sumUnpaid += rTotal;
+                                    }
+                                } else {
+                                    row.style.display = 'none';
+                                }
+                            });
+
+                            // Update KPI cards
+                            const elRev = document.getElementById('rpt_stat_revenue');
+                            const elPaid = document.getElementById('rpt_stat_paid');
+                            const elUnpaid = document.getElementById('rpt_stat_unpaid');
+                            const elProfit = document.getElementById('rpt_stat_profit');
+                            
+                            if (elRev) elRev.innerText = formatNum(sumRev);
+                            if (elPaid) elPaid.innerText = formatNum(sumPaid);
+                            if (elUnpaid) elUnpaid.innerText = formatNum(sumUnpaid);
+                            if (elProfit) elProfit.innerText = formatNum(sumProfit);
+
+                            // Update count and fade in
+                            const countEl = document.getElementById('rptRowCount');
+                            if (countEl) countEl.innerText = visibleCount + ' records';
+                            
+                            table.style.opacity = '1';
+                        }, 50);
+                        
+                        // Update URL silently so exports work
+                        const formData = new FormData();
+                        if (clientId) formData.append('client_id', clientId);
+                        if (areaId) formData.append('area_id', areaId);
+                        if (type) formData.append('contract_type', document.getElementById('rpt_filter_type').value);
+                        if (status) formData.append('status', document.getElementById('rpt_filter_status').value);
+                        if (ownership) formData.append('ownership', document.getElementById('rpt_filter_ownership').value);
+                        if (startDate) formData.append('start_date', startDate);
+                        if (endDate) formData.append('end_date', endDate);
+                        if (!isNaN(minAmount)) formData.append('min_amount', minAmount);
+                        if (!isNaN(maxAmount)) formData.append('max_amount', maxAmount);
+                        
+                        const newUrl = window.location.pathname + '?' + new URLSearchParams(formData).toString();
+                        window.history.replaceState(null, '', newUrl);
+                    }
+                    </script>
+                    <h5 class="fw-bold mb-4 border-bottom pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        Financial Summary
+                        <div class="d-flex align-items-center gap-2">
+                            <button onclick="exportToExcel()" class="btn btn-modern-success fw-bold shadow-sm" style="height:42px;padding:0 18px;font-size:.85rem;min-width:175px;">
+                                <i class="bi bi-file-earmark-excel-fill me-2"></i>Export Excel
+                            </button>
+                            <button onclick="printFinancialReport()" class="btn btn-modern-primary fw-bold shadow-sm" style="height:42px;padding:0 18px;font-size:.85rem;min-width:175px;">
+                                <i class="bi bi-printer me-2"></i>Printable Report
+                            </button>
+                        </div>
+                    </h5>
+
+                    <!-- KPI Cards (server-side totals from current filter) -->
+                    <!-- KPI Summary Background Card -->
+                    <div class="card p-3 border-0 mb-3 shadow-sm" style="background-color: #f8fafc; border-radius: 16px;">
+                        <h6 class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing: .05em;">Registry Summary</h6>
+                        <div class="row g-3" id="reportSummaryCards">
+                            <div class="col-xl-3 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-revenue">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Total Expected Revenue</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">{{ currency or 'UGX' }}</span><span id="rpt_stat_revenue">{{ "{:,.0f}".format(summary.revenue) }}</span>
+                                        </h4>
+                                        <i class="bi bi-wallet2 kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-3 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-paid">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Payments Received</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">{{ currency or 'UGX' }}</span><span id="rpt_stat_paid">{{ "{:,.0f}".format(summary.paid) }}</span>
+                                        </h4>
+                                        <i class="bi bi-cash-coin kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-3 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-unpaid">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Outstanding (Pending)</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">{{ currency or 'UGX' }}</span><span id="rpt_stat_unpaid">{{ "{:,.0f}".format(summary.unpaid) }}</span>
+                                        </h4>
+                                        <i class="bi bi-exclamation-circle kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-3 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-profit">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Est. Net Profit</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">{{ currency or 'UGX' }}</span><span id="rpt_stat_profit">{{ "{:,.0f}".format(summary.profit) }}</span>
+                                        </h4>
+                                        <i class="bi bi-graph-up-arrow kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Find — wide styled input-group -->
+                    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2 flex-wrap gap-2">
+                        <h5 class="fw-bold mb-0">Filtered Records
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary ms-2 fw-normal" style="font-size:.75rem;" id="rptRowCount"></span>
+                        </h5>
+                        <div class="position-relative" id="rptSearchWrapper" style="width: 100%; max-width: 550px;">
+                            <i class="bi bi-search position-absolute text-muted" style="left: 16px; top: 50%; transform: translateY(-50%); z-index: 5; font-size: 0.95rem;"></i>
+                            <input type="text" id="rptSearch" class="form-control shadow-sm" placeholder="Quick find across all columns..." style="padding-left: 42px; border-radius: 12px; height: 44px; font-size: 0.95rem; font-weight: 500; color: #1e293b; background: white;">
+                            <button type="button" id="rptClearBtn" class="btn position-absolute border-0 text-muted d-none" style="right: 10px; top: 50%; transform: translateY(-50%); z-index: 100; box-shadow: none !important;" onclick="clearRptSearch()">
+                                <i class="bi bi-x-circle-fill" style="font-size: 1rem;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Rich Table (same structure as all_entries) -->
+                    <div class="table-responsive rounded-3 border" style="max-height: calc(100vh - 380px); overflow-y: auto;">
+                        <table class="table modern-table align-middle mb-0" id="reportTable" style="white-space:nowrap;">
+                            <thead class="table-light sticky-top shadow-sm" style="z-index:50;">
+                                <tr class="small fw-bold text-muted text-uppercase">
+                                    <th class="py-3 ps-4 border-0 sticky-col-1" style="width:100px;">Entry ID</th>
+                                    <th class="py-3 border-0 sticky-col-2 col-rpt-details">Contract Details</th>
+                                    <th class="py-3 border-0 col-rpt-date">Completion Date</th>
+                                    <th class="py-3 border-0 col-rpt-contract">Contract No.</th>
+                                    <th class="py-3 border-0 col-rpt-po">Delivery Note No.</th>
+                                    <th class="py-3 border-0 col-rpt-invoice">Tax Invoice No.</th>
+                                    <th class="py-3 border-0 col-client">Client Name</th>
+                                    <th class="py-3 border-0 col-rpt-area">Supply Area</th>
+                                    <th class="py-3 border-0 col-rpt-company">Company</th>
+                                    <th class="py-3 border-0 col-rpt-type">Type</th>
+                                    <th class="py-3 border-0 col-rpt-ownership">Ownership</th>
+                                    <th class="py-3 border-0 col-rpt-gov">Gov?</th>
+                                    <th class="py-3 border-0 col-rpt-vat-rated">VAT?</th>
+                                    <th class="py-3 text-center border-0 col-payment-status">Status</th>
+                                    <th class="py-3 border-0 col-rpt-pay-date">Pay Date</th>
+                                    <th class="py-3 border-0 col-rpt-ura">URA</th>
+                                    <th class="py-3 text-end border-0 col-rpt-total">Amount</th>
+                                    <th class="py-3 text-end border-0 col-rpt-inv">Investment</th>
+                                    <th class="py-3 text-end text-info border-0 col-rpt-vat">VAT (18%)</th>
+                                    <th class="py-3 text-end text-success border-0 col-rpt-net">Net Payable</th>
+                                    <th class="py-3 text-end text-emerald border-0 col-rpt-profit">Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-top-0">
+                                {% for s in sales %}
+                                <tr class="registry-row staggered-row" 
+                                    data-client-id="{{ s.client_id }}"
+                                    data-area-id="{{ s.area_id }}"
+                                    data-contract-type="{{ s.contract_type }}"
+                                    data-status="{{ s.payment_status }}"
+                                    data-ownership="{{ s.ownership_status }}"
+                                    data-completion-date="{{ s.completion_date }}"
+                                    data-total="{{ s.total or 0 }}"
+                                    data-profit="{{ s.profit or 0 }}"
+                                    style="cursor: pointer; {% if loop.index > 50 %}display:none;{% endif %}" ondblclick="editInPopup({{ s.id }})">
+
+                                    <td class="fw-extrabold text-primary ps-4 sticky-col-1">{{ s.entry_id }}</td>
+                                    <td class="col-rpt-details sticky-col-2">
+                                        <div class="text-truncate fw-bold" style="max-width:220px;color:#475569;font-size:.84rem;" title="{{ s.contract_details }}">{{ s.contract_details }}</div>
+                                    </td>
+                                    <td class="fw-bold text-dark col-rpt-date">{{ s.completion_date|custom_date }}</td>
+                                    <td class="text-muted fw-semibold col-rpt-contract">{{ s.contract_no }}</td>
+                                    <td class="text-muted col-rpt-po">{{ s.po_no|no_decimal }}</td>
+                                    <td class="fw-bold text-dark col-rpt-invoice">{{ s.invoice_code|no_decimal }}</td>
+                                    <td class="fw-bold col-client">{{ s.client_name }}</td>
+                                    <td class="col-rpt-area">
+                                        <span class="badge bg-light text-muted border px-2 py-1" style="font-size:.78rem;border-radius:8px;">{{ s.area_name }}</span>
+                                    </td>
+                                    <td class="text-muted fw-semibold col-rpt-company">{{ s.company_name }}</td>
+                                    <td class="fw-medium col-rpt-type">{{ s.contract_type }}</td>
+                                    <td class="fw-medium col-rpt-ownership">{{ s.ownership_status }}</td>
+                                    <td class="col-rpt-gov">
+                                        <span class="badge px-2 py-1" style="border-radius:6px;font-size:.75rem;{% if s.is_gov %}background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.15);{% else %}background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;{% endif %}">
+                                            {{ 'Yes' if s.is_gov else 'No' }}
+                                        </span>
+                                    </td>
+                                    <td class="col-rpt-vat-rated">
+                                        <span class="badge px-2 py-1" style="border-radius:6px;font-size:.75rem;{% if s.is_vat_rated %}background:rgba(6,182,212,.1);color:#0891b2;border:1px solid rgba(6,182,212,.15);{% else %}background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;{% endif %}">
+                                            {{ 'Yes' if s.is_vat_rated else 'No' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center col-payment-status">
+                                        <span class="badge rounded-pill px-3 py-1 fw-bold {% if s.payment_status == 'PAID' %}status-badge-paid{% elif s.payment_status in ['BAD DEBT', 'CANCELLED'] %}status-badge-baddebt{% else %}status-badge-pending{% endif %}"
+                                              style="font-size:.78rem;">
+                                            {{ s.payment_status }}
+                                        </span>
+                                    </td>
+                                    <td class="text-muted col-rpt-pay-date">{{ s.payment_date|custom_date }}</td>
+                                    <td class="col-rpt-ura"><span class="ura-pill text-white {% if s.ura_status == 'PAID' %}bg-success{% elif s.ura_status == 'UNPAID' %}bg-danger{% elif s.ura_status == 'OFFSET' %}bg-primary{% else %}bg-secondary{% endif %}">{{ s.ura_status }}</span></td>
+                                    <td class="text-end fw-bold text-dark col-rpt-total amount-col">{{ "{:,.0f}".format(s.total or 0) }}</td>
+                                    <td class="text-end text-muted fw-semibold col-rpt-inv amount-col">{{ "{:,.0f}".format(s.investment_amount or 0) }}</td>
+                                    <td class="text-end text-info fw-bold col-rpt-vat amount-col">{{ "{:,.0f}".format(s.vat or 0) }}</td>
+                                    <td class="text-end text-success fw-extrabold col-rpt-net amount-col">{{ "{:,.0f}".format(s.net_payable or 0) }}</td>
+                                    <td class="text-end text-emerald fw-black col-rpt-profit amount-col">{{ "{:,.0f}".format(s.profit or 0) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="22" class="text-center text-muted py-5 fw-semibold">No records match the current filter.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div><!-- /table-responsive -->
+                </div><!-- /contracts-pane -->                <!-- Tab: Outstanding Demands (Demands Section) -->
+                <div class="tab-pane fade {{ 'show active' if active_tab == 'demands' else '' }}" id="demands-pane" role="tabpanel" aria-labelledby="demands-tab">
+                    
+                    <!-- KPI Summary Background Card -->
+                    <div class="card p-3 border-0 mb-3 shadow-sm" style="background-color: #f8fafc; border-radius: 16px;">
+                        <h6 class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing: .05em;">Demands Summary</h6>
+                        <div class="row g-3">
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-unpaid">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Total Outstanding Demands</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(demand_total) }}
+                                        </h4>
+                                        <i class="bi bi-exclamation-circle kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-revenue">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Pending Invoices</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            {{ demand_count }} transaction{{ 's' if demand_count != 1 else '' }}
+                                        </h4>
+                                        <i class="bi bi-journal-text kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-profit">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Est. Net Profit (Demands)</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(demand_profit) }}
+                                        </h4>
+                                        <i class="bi bi-graph-up-arrow kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outstanding Demands Client Cards Container Card -->
+                    <div class="card p-3 border-0 shadow-sm" style="background-color: #f8fafc; border-radius: 16px;">
+                        <div class="d-flex align-items-center mb-3">
+                            <h5 class="fw-bold mb-0 text-dark d-flex align-items-center" style="font-size: 1.15rem;">
+                                <i class="bi bi-people-fill text-primary me-2" style="font-size: 1.25rem;"></i> Outstanding Client Demands
+                            </h5>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary ms-2 fw-semibold" style="font-size:.75rem;">
+                                {{ demanded_clients|length }} demanded
+                            </span>
+                        </div>
+                        
+                        <!-- Demanded Clients Cards Directory -->
+                        {% set bg_accents = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.12)', 'rgba(245, 158, 11, 0.12)', 'rgba(139, 92, 246, 0.12)', 'rgba(244, 63, 94, 0.12)', 'rgba(71, 85, 105, 0.12)'] %}
+                        {% set text_accents = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#e11d48', '#475569'] %}
+
+                        <div class="row g-3" id="demandedClientsContainer">
+                            {% for c in demanded_clients %}
+                            {% set color_idx = loop.index0 % 6 %}
+                            <div class="col-md-4 demand-client-card" data-client-name="{{ c.name|lower }}">
+                                <div class="card h-100 hover-card shadow-sm animate__animated animate__fadeInUp" 
+                                     style="animation-delay: {{ loop.index0 * 0.03 }}s; border: none !important; background: {{ bg_accents[color_idx] }} !important; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px;">
+                                    <div class="card-body text-center p-3.5 d-flex flex-column justify-content-between" style="min-height: 200px;">
+                                        <div>
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <span class="badge bg-white shadow-sm fw-bold" style="font-size: 0.65rem; padding: 4px 8px; color: {{ text_accents[color_idx] }}; border-radius: 6px;">{{ c.code }}</span>
+                                            </div>
+                                            <h5 class="fw-bold mb-3 text-dark" title="{{ c.name }}" style="font-size: 1.25rem; line-height: 1.2; letter-spacing: -0.02em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.4em;">{{ c.name }}</h5>
+                                            <p class="small fw-medium mb-4" style="color: rgba(30, 41, 59, 0.7); min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.82rem;">
+                                                <i class="bi bi-geo-alt-fill me-1" style="color: {{ text_accents[color_idx] }};"></i> {{ c.address or 'No address provided' }}
+                                            </p>
+                                        </div>
+                                        <div class="d-grid">
+                                            <button onclick="handleDemandNoteClick({{ c.id }}, '{{ c.name | replace("'", "\\'") }}')" class="btn fw-bold py-2 shadow-sm border-0" style="background: {{ text_accents[color_idx] }}; color: white; border-radius: 12px; font-size: 0.88rem;">
+                                                <i class="bi bi-printer me-2"></i> Demand Note
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="col-12 text-center text-muted py-5 fw-semibold">No outstanding demands found.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div><!-- /demands-pane -->
+
+                <!-- Tab 2: Monthly Payments Made -->
+                <div class="tab-pane fade {{ 'show active' if active_tab == 'payments' else '' }}" id="payments-pane" role="tabpanel" aria-labelledby="payments-tab">
+                    <h5 class="fw-bold mb-4 border-bottom pb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        Payments Report {% if pay_start_formatted and pay_end_formatted %}({{ pay_start_formatted }} to {{ pay_end_formatted }}){% else %}(All Time){% endif %}
+                        <div class="d-flex align-items-center gap-2 ms-auto">
+                            <button type="button"
+                                class="btn fw-bold shadow-sm {% if request.args.get('pay_start') %}btn-modern-reset{% else %}btn-modern-indigo{% endif %}"
+                                id="selectPeriodBtn"
+                                style="height:42px;padding:0 18px;font-size:.85rem;min-width:175px;"
+                                {% if not request.args.get('pay_start') %}
+                                    data-bs-toggle="modal" data-bs-target="#paymentPeriodModal"
+                                {% else %}
+                                    onclick="clearPaymentPeriod()"
+                                {% endif %}
+                                title="{% if request.args.get('pay_start') %}Clear filter{% else %}Select period{% endif %}">
+                                <i class="bi bi-calendar-range me-2"></i>Select Period{% if request.args.get('pay_start') %}<i class="bi bi-x-circle ms-2"></i>{% endif %}
+                            </button>
+                            <button onclick="exportSelectedMonthExcel()" class="btn btn-modern-success fw-bold shadow-sm" style="height:42px;padding:0 18px;font-size:.85rem;min-width:175px;">
+                                <i class="bi bi-file-earmark-excel-fill me-2"></i>Export Excel
+                            </button>
+                            <button onclick="printPaymentsReport()" class="btn btn-modern-primary fw-bold shadow-sm" style="height:42px;padding:0 18px;font-size:.85rem;min-width:175px;">
+                                <i class="bi bi-printer me-2"></i>Printable Report
+                            </button>
+                        </div>
+                    </h5>
+                    
+                    <!-- Month Payments KPI Cards -->
+                    <!-- KPI Summary Background Card -->
+                    <div class="card p-3 border-0 mb-3 shadow-sm" style="background-color: #f8fafc; border-radius: 16px;">
+                        <h6 class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing: .05em;">Payments Summary</h6>
+                        <div class="row g-3">
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-revenue">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Payments Received</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            {{ payments_count }} transaction{{ 's' if payments_count != 1 else '' }}
+                                        </h4>
+                                        <i class="bi bi-journal-check kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-paid">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Total Paid</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(payments_total) }}
+                                        </h4>
+                                        <i class="bi bi-cash-coin kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-theme-profit">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold small text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:.7rem;">Estimated Profit</span>
+                                        <h4 class="fw-bold mb-0 text-white" style="font-size: clamp(1.1rem, 1.45vw, 1.35rem); letter-spacing: -.02em; line-height: 1.25; word-wrap: break-word; white-space: normal;">
+                                            <span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(payments_profit) }}
+                                        </h4>
+                                        <i class="bi bi-graph-up-arrow kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tax Filing Summary -->
+                    <div class="card p-3 border-0 mb-3 shadow-sm" style="background: linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%); border-radius:16px;">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="fw-bold small text-uppercase mb-0" style="color:#92400e;letter-spacing:.05em;"><i class="bi bi-calculator-fill me-2" style="color:#f59e0b;"></i>Tax Filing Summary <span class="fw-normal ms-1" style="font-size:.75rem;color:#b45309;">(VAT-Rated Entries Only)</span></h6>
+                            <span class="badge fw-bold px-3 py-1" style="background:#f59e0b;color:#fff;border-radius:20px;font-size:.75rem;">{{ payments_vat_count }} VAT-rated transaction{{ 's' if payments_vat_count != 1 else '' }}</span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="rounded-3 p-3 h-100" style="background:#fff;border:1.5px solid #fde68a; display: flex; flex-column; justify-content: space-between; flex-direction: column;">
+                                    <div>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="bi bi-percent me-2" style="color:#f59e0b;font-size:1.1rem;"></i>
+                                            <span class="small fw-bold text-uppercase" style="color:#92400e;letter-spacing:.06em;font-size:.72rem;">VAT Collected (18%)</span>
+                                        </div>
+                                        <div class="fw-black" style="font-size:1.25rem;color:#78350f;"><span style="font-size:.8rem;font-weight:600;color:#b45309;">UGX</span> {{ "{:,.0f}".format(payments_vat_total) }}</div>
+                                    </div>
+                                    <div class="mt-2 pt-2 border-top" style="border-top-style: dashed !important; border-top-color: #fde68a !important;">
+                                        <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: .72rem;">
+                                            <span class="text-muted fw-bold">Settlement Status:</span>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-1 align-items-center">
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20 px-2 py-1" style="font-size: 0.65rem;" title="Paid to URA">
+                                                Paid: {{ "{:,.0f}".format(payments_vat_paid) }}
+                                            </span>
+                                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-20 px-2 py-1" style="font-size: 0.65rem;" title="Offset with URA input credit">
+                                                Offset: {{ "{:,.0f}".format(payments_vat_offset) }}
+                                            </span>
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 px-2 py-1" style="font-size: 0.65rem;" title="Outstanding VAT due">
+                                                Due: {{ "{:,.0f}".format(payments_vat_outstanding) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="rounded-3 p-3 h-100" style="background:#fff;border:1.5px solid #fde68a; display: flex; flex-column; justify-content: space-between; flex-direction: column;">
+                                    <div>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="bi bi-scissors me-2" style="color:#ef4444;font-size:1.1rem;"></i>
+                                            <span class="small fw-bold text-uppercase" style="color:#92400e;letter-spacing:.06em;font-size:.72rem;">WHT Withheld (6%)</span>
+                                        </div>
+                                        <div class="fw-black" style="font-size:1.25rem;color:#78350f;"><span style="font-size:.8rem;font-weight:600;color:#b45309;">UGX</span> {{ "{:,.0f}".format(payments_wht_total) }}</div>
+                                    </div>
+                                    <div class="mt-2 pt-2 border-top text-muted" style="border-top-style: dashed !important; border-top-color: #fde68a !important; font-size: .72rem; line-height: 1.4;">
+                                        <i class="bi bi-info-circle-fill me-1" style="color: #f59e0b;"></i> Income tax credit certificate withheld by clients &amp; remitted to URA.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-xl-4 col-md-6 col-12">
+                                <div class="rounded-3 p-3 h-100" style="background:#fff;border:1.5px solid #fde68a; display: flex; flex-column; justify-content: space-between; flex-direction: column;">
+                                    <div>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="bi bi-bank me-2" style="color:#10b981;font-size:1.1rem;"></i>
+                                            <span class="small fw-bold text-uppercase" style="color:#92400e;letter-spacing:.06em;font-size:.72rem;">Net VAT Payable</span>
+                                        </div>
+                                        <div class="fw-black" style="font-size:1.25rem;color:#78350f;"><span style="font-size:.8rem;font-weight:600;color:#b45309;">UGX</span> {{ "{:,.0f}".format([payments_vat_total - payments_wht_total, 0]|max) }}</div>
+                                    </div>
+                                    <div class="mt-2 pt-2 border-top" style="border-top-style: dashed !important; border-top-color: #fde68a !important;">
+                                        <div class="d-flex justify-content-between align-items-center" style="font-size: .72rem;">
+                                            <span class="text-muted fw-bold">Outstanding Net VAT:</span>
+                                            {% set payments_net_outstanding = [payments_vat_outstanding - payments_wht_outstanding, 0]|max %}
+                                            <span class="fw-bold {% if payments_net_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                UGX {{ "{:,.0f}".format(payments_net_outstanding) }}
+                                            </span>
+                                        </div>
+                                        <div class="small text-muted mt-1" style="font-size:.68rem; line-height: 1.4;">
+                                            Net obligation (VAT due less WHT credits)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive rounded-3 border" style="max-height: calc(100vh - 380px); overflow-y: auto;">
+                        <table class="table modern-table align-middle mb-0" id="monthPaymentsTable" style="white-space:nowrap;">
+                            <thead class="table-light sticky-top shadow-sm" style="z-index:50;">
+                                <tr class="small fw-bold text-muted text-uppercase">
+                                    <th class="py-3 ps-4 border-0 sticky-col-1" style="width:100px;">Entry ID</th>
+                                    <th class="py-3 border-0 sticky-col-2 col-rpt-details">Contract Details</th>
+                                    <th class="py-3 border-0">Completion Date</th>
+                                    <th class="py-3 border-0">Payment Date</th>
+                                    <th class="py-3 border-0">Tax Invoice Date</th>
+                                    <th class="py-3 border-0">Client Name</th>
+                                    <th class="py-3 border-0">Tax Invoice No.</th>
+                                    <th class="py-3 border-0">Supply Area</th>
+                                    <th class="py-3 text-center border-0">VAT?</th>
+                                    <th class="py-3 text-center border-0">URA Status</th>
+                                    <th class="py-3 border-0 text-center">Tax Period</th>
+                                    <th class="py-3 text-end border-0">VAT (18%)</th>
+                                    <th class="py-3 text-end border-0">WHT (6%)</th>
+                                    <th class="py-3 text-end border-0">Amount</th>
+                                    <th class="py-3 text-end pe-4 border-0">Est. Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in selected_month_payments %}
+                                <tr class="registry-row staggered-row" style="cursor: pointer;" ondblclick="editInPopup({{ s.id }})">
+                                    <td class="fw-extrabold text-primary ps-4 sticky-col-1">{{ s.entry_id }}</td>
+                                    <td class="col-rpt-details sticky-col-2">
+                                        <div class="text-truncate fw-bold" style="max-width:250px;color:#475569;font-size:.84rem;" title="{{ s.contract_details }}">{{ s.contract_details }}</div>
+                                    </td>
+                                    <td class="text-muted fw-semibold">{{ s.completion_date|custom_date if s.completion_date else '—' }}</td>
+                                    <td class="fw-bold text-dark">{{ s.payment_date|custom_date }}</td>
+                                    <td class="text-muted fw-semibold">{{ s.tax_invoice_date|custom_date if s.tax_invoice_date else '—' }}</td>
+                                    <td class="fw-bold">{{ s.client_name }}</td>
+                                    <td class="text-muted fw-semibold">{{ s.invoice_code|no_decimal }}</td>
+                                    <td><span class="badge bg-light text-muted border px-2 py-1" style="font-size:.78rem;border-radius:8px;">{{ s.area_name }}</span></td>
+                                    <td class="text-center">
+                                        {% if s.is_vat_rated %}
+                                        <span class="badge fw-bold px-2 py-1" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.72rem;border-radius:6px;">VAT</span>
+                                        {% else %}
+                                        <span class="text-muted" style="font-size:.85rem;">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="ura-pill text-white {% if s.ura_status == 'PAID' %}bg-success{% elif s.ura_status == 'UNPAID' %}bg-danger{% elif s.ura_status == 'OFFSET' %}bg-primary{% else %}bg-secondary{% endif %}">{{ s.ura_status }}</span>
+                                    </td>
+                                    <td class="text-center text-muted fw-bold" style="font-size: 0.82rem;">{{ s.tax_period or '' }}</td>
+                                    <td class="text-end fw-semibold" style="color:{% if s.is_vat_rated %}#b45309{% else %}#94a3b8{% endif %};">{% if s.is_vat_rated %}{{ "{:,.0f}".format(s.vat) }}{% else %}—{% endif %}</td>
+                                    <td class="text-end fw-semibold" style="color:{% if s.wht %}#dc2626{% else %}#94a3b8{% endif %};">{% if s.wht %}{{ "{:,.0f}".format(s.wht) }}{% else %}—{% endif %}</td>
+                                    <td class="text-end fw-bold text-dark amount-col">{{ "{:,.0f}".format(s.total) }}</td>
+                                    <td class="text-end text-emerald fw-black pe-4 amount-col">{{ "{:,.0f}".format(s.profit) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="13" class="text-center text-muted py-5 fw-semibold">No payments found matching the selected payment period.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div><!-- /payments-pane -->
+
+                <!-- ═══ Tab: URA SECTION ═══ -->
+                <div class="tab-pane fade {{ 'show active' if active_tab == 'ura' else '' }}" id="ura-pane" role="tabpanel" aria-labelledby="ura-tab">
+
+                    <!-- URA Filing Countdown & Overdue Alerts -->
+                    {% if countdown_info.overdue_periods %}
+                    <div class="alert alert-danger border-0 d-flex align-items-center p-3 mb-3 shadow-sm" style="border-radius:14px; background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle p-2 d-flex align-items-center justify-content-center bg-danger bg-opacity-10 text-danger animate__animated animate__pulse animate__infinite" style="width: 42px; height: 42px; min-width: 42px;">
+                                <i class="bi bi-exclamation-octagon-fill" style="font-size: 1.3rem;"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-0 text-danger" style="font-size: 0.92rem;">Filing Overdue Alert</h6>
+                                <p class="mb-0 text-muted small" style="font-size: 0.82rem;">You have outstanding unpaid VAT liability from previous periods (<strong>{{ countdown_info.overdue_periods|join(', ') }}</strong>) that has passed its filing deadline. Please settle these entries to avoid URA penalty accumulation.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if countdown_info.active %}
+                    <div class="alert border-0 d-flex align-items-center p-3 mb-3 shadow-sm" style="border-radius:14px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1.5px solid #fde68a !important;">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle p-2 d-flex align-items-center justify-content-center bg-warning bg-opacity-15 text-warning" style="width: 42px; height: 42px; min-width: 42px;">
+                                <i class="bi bi-calendar-event-fill" style="font-size: 1.2rem; color: #d97706;"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-0" style="color: #92400e; font-size: 0.92rem;">VAT Filing Timeline for {{ countdown_info.current_period }}</h6>
+                                <p class="mb-0 text-muted small" style="font-size: 0.82rem;">Returns must be filed by the 15th of the next month. The next filing deadline is <strong>{{ countdown_info.deadline_date }}</strong> (<strong>{{ countdown_info.days_remaining }} days</strong> remaining).</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- URA KPI Cards -->
+                    <div class="card p-3 border-0 mb-3 shadow-sm" style="background-color:#f8fafc; border-radius:16px;">
+                        <h6 class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing:.05em;">URA VAT Summary</h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-ura-due" onclick="toggleUraKpiFilter('DUE', this)">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:clamp(0.6rem, 0.8vw, 0.72rem);white-space:nowrap;display:block;">UNPAID VAT (DUE)</span>
+                                        <h4 class="fw-bold mb-0 text-white mt-2" style="font-size:clamp(1rem,1.4vw,1.3rem);z-index:2;"><span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(ura_summary.unpaid_due_vat) }}</h4>
+                                        <span class="text-white text-opacity-60 small" style="z-index:2;">{{ ura_summary.unpaid_due_count }} invoice{{ 's' if ura_summary.unpaid_due_count != 1 else '' }}</span>
+                                        <i class="bi bi-exclamation-triangle-fill kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-ura-not-due" onclick="toggleUraKpiFilter('NOT_DUE', this)">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:clamp(0.6rem, 0.8vw, 0.72rem);white-space:nowrap;display:block;">UNPAID VAT (NOT DUE)</span>
+                                        <h4 class="fw-bold mb-0 text-white mt-2" style="font-size:clamp(1rem,1.4vw,1.3rem);z-index:2;"><span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(ura_summary.unpaid_not_due_vat) }}</h4>
+                                        <span class="text-white text-opacity-60 small" style="z-index:2;">{{ ura_summary.unpaid_not_due_count }} invoice{{ 's' if ura_summary.unpaid_not_due_count != 1 else '' }}</span>
+                                        <i class="bi bi-clock-history kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-ura-paid" onclick="toggleUraKpiFilter('PAID', this)">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:clamp(0.6rem, 0.8vw, 0.72rem);white-space:nowrap;display:block;">VAT PAID</span>
+                                        <h4 class="fw-bold mb-0 text-white mt-2" style="font-size:clamp(1rem,1.4vw,1.3rem);z-index:2;"><span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(ura_summary.paid_vat) }}</h4>
+                                        <span class="text-white text-opacity-60 small" style="z-index:2;">{{ ura_summary.paid_count }} invoice{{ 's' if ura_summary.paid_count != 1 else '' }}</span>
+                                        <i class="bi bi-check-circle-fill kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card border-0 shadow-sm h-100 report-kpi-card kpi-ura-offset" onclick="toggleUraKpiFilter('OFFSET', this)">
+                                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                                        <span class="fw-bold text-uppercase" style="color:rgba(255,255,255,0.75);letter-spacing:.08em;font-size:clamp(0.6rem, 0.8vw, 0.72rem);white-space:nowrap;display:block;">VAT OFFSET</span>
+                                        <h4 class="fw-bold mb-0 text-white mt-2" style="font-size:clamp(1rem,1.4vw,1.3rem);z-index:2;"><span class="fw-normal me-1 text-white text-opacity-75" style="font-size:.8rem;">UGX</span>{{ "{:,.0f}".format(ura_summary.offset_vat) }}</h4>
+                                        <span class="text-white text-opacity-60 small" style="z-index:2;">{{ ura_summary.offset_count }} invoice{{ 's' if ura_summary.offset_count != 1 else '' }}</span>
+                                        <i class="bi bi-arrow-left-right kpi-watermark"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Print button & Filter (scoped to URA section only) -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-muted mb-0 d-flex align-items-center flex-wrap gap-2">
+                            <i class="bi bi-table text-primary"></i>
+                            <span>VAT-Rated Invoice Detail</span>
+                            <span class="badge bg-light text-muted border" style="font-size:0.78rem;" id="uraInvoiceCount">{{ ura_sales|length }} invoices</span>
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 px-2 py-1 rounded-pill" id="uraFilterResetBadge" style="cursor: pointer; display: none; font-size: 0.72rem; transition: all 0.2s; align-items: center;" onclick="clearUraFilter()">
+                                <i class="bi bi-x-circle me-1"></i>Reset Filter
+                            </span>
+                        </h6>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button onclick="openUraReport()" class="btn btn-modern-primary fw-bold shadow-sm" style="height:34px;padding:0 18px;font-size:.85rem;border-radius:10px;display:flex;align-items:center;">
+                                <i class="bi bi-printer me-2"></i>Printable Report
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Full-width table, same columns as All Entries, frozen first 2 cols -->
+                    <div class="table-responsive rounded-3 border" id="uraTableWrapper" style="max-height:calc(100vh - 340px); overflow-y:auto;">
+                        <table class="table modern-table align-middle mb-0" id="uraTable" style="white-space:nowrap;">
+                            <thead class="table-light sticky-top shadow-sm">
+                                <tr class="small fw-bold text-muted text-uppercase">
+                                    <th class="py-3 ps-4 border-0 sticky-col-1" style="width:100px;">Entry ID</th>
+                                    <th class="py-3 border-0 sticky-col-2">Contract Details</th>
+                                    <th class="py-3 border-0">Completion Date</th>
+                                    <th class="py-3 border-0">Tax Invoice Date</th>
+                                    <th class="py-3 border-0">URA Status</th>
+                                    <th class="py-3 border-0">Tax Period</th>
+                                    <th class="py-3 border-0">Contract No.</th>
+                                    <th class="py-3 border-0">Delivery Note No.</th>
+                                    <th class="py-3 border-0">Tax Invoice No.</th>
+                                    <th class="py-3 border-0">Client Name</th>
+                                    <th class="py-3 border-0">Supply Area</th>
+                                    <th class="py-3 border-0">Supplying Company</th>
+                                    <th class="py-3 border-0">Contract Type</th>
+                                    <th class="py-3 border-0">Ownership</th>
+                                    <th class="py-3 border-0">Govt?</th>
+                                    <th class="py-3 border-0">VAT Rated?</th>
+                                    <th class="py-3 text-center border-0">Payment Status</th>
+                                    <th class="py-3 border-0">Payment Date</th>
+                                    <th class="py-3 text-end border-0">Contract Amount</th>
+                                    <th class="py-3 text-end border-0">Investment Amount</th>
+                                    <th class="py-3 text-end text-info border-0">VAT (18%)</th>
+                                    <th class="py-3 text-end text-success border-0">Net Payable</th>
+                                    <th class="py-3 text-end border-0">Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for s in ura_sales %}
+                            {% set is_high_risk = s.is_high_risk %}
+                            {% set is_ura_due = (s.ura_status == 'UNPAID' and s.payment_status == 'PAID') %}
+                            <tr class="ura-data-row {% if is_ura_due %}ura-row-due{% endif %}"
+                                data-id="{{ s.id }}"
+                                data-ura-status="{{ s.ura_status }}"
+                                data-payment-status="{{ s.payment_status }}"
+                                style="cursor:pointer;"
+                                ondblclick="editInPopup({{ s.id }})">
+                                <td class="fw-extrabold text-primary ps-4 sticky-col-1">{{ s.entry_id }}</td>
+                                <td class="sticky-col-2">
+                                    <div class="text-truncate fw-bold" style="max-width:220px;color:#475569;font-size:.84rem;" title="{{ s.contract_details }}">{{ s.contract_details }}</div>
+                                </td>
+                                <td class="fw-bold text-dark">{{ s.completion_date|custom_date }}</td>
+                                <td class="text-muted fw-semibold">{{ s.tax_invoice_date|custom_date if s.tax_invoice_date else '-' }}</td>
+                                <td>
+                                    <span class="ura-pill {% if s.ura_status == 'PAID' %}bg-success text-white{% elif s.ura_status == 'UNPAID' %}bg-danger text-white{% elif s.ura_status == 'OFFSET' %}bg-primary text-white{% elif s.ura_status == 'PENDING' %}bg-warning text-dark{% elif s.ura_status == 'CANCELLED' %}bg-dark text-white{% else %}bg-secondary text-white{% endif %}">{{ s.ura_status }}</span>
+                                    {% if is_ura_due %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 ms-1 fw-bold" style="font-size:0.68rem; border-radius: 6px; letter-spacing:0.02em;" title="Collected from client but URA VAT remains unpaid">DUE</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted fw-bold" style="font-size: 0.82rem;">{{ s.tax_period or '' }}</td>
+                                <td class="text-muted fw-semibold">{{ s.contract_no }}</td>
+                                <td class="text-muted">{{ s.po_no|no_decimal }}</td>
+                                <td class="fw-bold text-dark">{{ s.invoice_code|no_decimal }}</td>
+                                <td class="fw-bold">{{ s.client_name }}</td>
+                                <td><span class="badge bg-light text-muted border px-2 py-1" style="font-size:.78rem;border-radius:8px;">{{ s.area_name }}</span></td>
+                                <td class="text-muted fw-semibold">{{ s.company_name }}</td>
+                                <td class="fw-medium">{{ s.contract_type }}</td>
+                                <td class="fw-medium">{{ s.ownership_status }}</td>
+                                <td>
+                                    <span class="badge px-2 py-1" style="border-radius:6px;font-size:.75rem;{% if s.is_gov %}background:rgba(37,99,235,.1);color:#2563eb;border:1px solid rgba(37,99,235,.15);{% else %}background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;{% endif %}">
+                                        {{ 'Yes' if s.is_gov else 'No' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge px-2 py-1" style="border-radius:6px;font-size:.75rem;{% if s.is_vat_rated %}background:rgba(6,182,212,.1);color:#0891b2;border:1px solid rgba(6,182,212,.15);{% else %}background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;{% endif %}">
+                                        {{ 'Yes' if s.is_vat_rated else 'No' }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge rounded-pill px-3 py-1 fw-bold {% if s.payment_status == 'PAID' %}status-badge-paid{% elif s.payment_status in ['BAD DEBT','CANCELLED'] %}status-badge-baddebt{% else %}status-badge-pending{% endif %}" style="font-size:.78rem;">{{ s.payment_status }}</span>
+                                </td>
+                                <td class="text-muted">{{ s.payment_date|custom_date }}</td>
+
+                                <td class="text-end fw-bold text-dark amount-col">{{ "{:,.0f}".format(s.total or 0) }}</td>
+                                <td class="text-end text-muted fw-semibold amount-col">{{ "{:,.0f}".format(s.investment_amount or 0) }}</td>
+                                <td class="text-end text-info fw-bold amount-col">{{ "{:,.0f}".format(s.vat or 0) }}</td>
+                                <td class="text-end text-success fw-extrabold amount-col">{{ "{:,.0f}".format(s.net_payable or 0) }}</td>
+                                <td class="text-end text-emerald fw-black amount-col">{{ "{:,.0f}".format(s.profit or 0) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="22" class="text-center text-muted py-5 fw-semibold">No VAT-rated invoices found.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div><!-- /ura-pane -->
+
+            </div><!-- /tab-content -->
+
+        </div>
+    </div>
+</div>
+
+<!-- Select Payment Period Modal -->
+<div class="modal fade" id="paymentPeriodModal" tabindex="-1" aria-labelledby="paymentPeriodModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" id="paymentPeriodModalLabel">
+                    <i class="bi bi-calendar-range text-primary me-2"></i>Select Payment Period
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="GET" action="{{ url_for('reports') }}" id="paymentPeriodForm">
+                <!-- Keep other advanced filters if they exist in query -->
+                {% if request.args.get('client_id') %}
+                    <input type="hidden" name="client_id" value="{{ request.args.get('client_id') }}">
+                {% endif %}
+                {% if request.args.get('area_id') %}
+                    <input type="hidden" name="area_id" value="{{ request.args.get('area_id') }}">
+                {% endif %}
+                {% if request.args.get('status') %}
+                    <input type="hidden" name="status" value="{{ request.args.get('status') }}">
+                {% endif %}
+                {% if request.args.get('ownership') %}
+                    <input type="hidden" name="ownership" value="{{ request.args.get('ownership') }}">
+                {% endif %}
+                
+                <div class="modal-body py-4">
+                    <p class="text-muted small mb-4">Choose a start and end date to filter the payments report based on the payment date.</p>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">Start Date</label>
+                        <input type="date" name="pay_start" class="form-control py-2" style="border-radius: 10px;" value="{{ pay_start }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-secondary">End Date</label>
+                        <input type="date" name="pay_end" class="form-control py-2" style="border-radius: 10px;" value="{{ pay_end }}">
+                    </div>
+                    
+                    <!-- Presets for fast selection -->
+                    <div class="mb-0">
+                        <label class="form-label small fw-bold text-secondary">Quick Presets</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setPresetRange('today')" style="border-radius: 8px;">Today</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setPresetRange('this_month')" style="border-radius: 8px;">This Month</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setPresetRange('last_month')" style="border-radius: 8px;">Last Month</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setPresetRange('this_year')" style="border-radius: 8px;">This Year</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setPresetRange('all_time')" style="border-radius: 8px;">All Time</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light fw-bold px-3" data-bs-dismiss="modal" style="border-radius: 10px;">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4" style="border-radius: 10px;">Generate Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for selecting supply areas -->
+<div class="modal fade" id="selectAreasModal" tabindex="-1" aria-labelledby="selectAreasModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark" id="selectAreasModalLabel">
+                    <i class="bi bi-geo-fill text-primary me-2"></i> Select Supply Areas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">Choose the specific supply areas you want to include in this Demand Note.</p>
+                
+                <!-- Select All Option -->
+                <div class="form-check p-3 mb-2 rounded bg-light border border-2 border-primary border-opacity-10 d-flex align-items-center">
+                    <input class="form-check-input ms-0 me-3" type="checkbox" id="selectAllAreas" checked style="width: 1.25em; height: 1.25em;">
+                    <label class="form-check-label fw-bold text-primary mb-0 cursor-pointer" for="selectAllAreas" style="cursor: pointer; user-select: none;">
+                        Select All Areas
+                    </label>
+                </div>
+                
+                <!-- Checkbox list of areas -->
+                <div id="areaCheckboxesContainer" class="mt-3" style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                    <!-- Dynamically populated checkboxes -->
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 20px;">Cancel</button>
+                <button type="button" id="confirmPrintDemandNoteBtn" class="btn btn-primary fw-bold px-4" style="border-radius: 12px; padding: 10px 24px;">
+                    <i class="bi bi-printer me-2"></i> Print Demand Note
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Define helpers globally
+    function printFinancialReport() {
+        const params = new URLSearchParams(window.location.search);
+        openReport(`/print_financial_report?${params.toString()}`);
+    }
+    
+    function printPaymentsReport() {
+        const params = new URLSearchParams(window.location.search);
+        // Always pass raw YYYY-MM-DD params for backend date comparison
+        if (!params.has('pay_start') || !params.get('pay_start')) {
+            params.set('pay_start', '{{ pay_start if pay_start else "" }}');
+        }
+        if (!params.has('pay_end') || !params.get('pay_end')) {
+            params.set('pay_end', '{{ pay_end if pay_end else "" }}');
+        }
+        openReport(`/print_payments_report?${params.toString()}`);
+    }
+
+    function openUraReport() {
+        const params = new URLSearchParams(window.location.search);
+        const filterVal = window.activeKpiFilter || 'ALL';
+        params.set('ura_filter', filterVal);
+        openReport(`/print_ura_report?${params.toString()}`);
+    }
+
+    // URA Section KPI Filter Logic
+    window.activeKpiFilter = null;
+
+    window.toggleUraKpiFilter = function(filterType, cardEl) {
+        if (window.activeKpiFilter === filterType) {
+            clearUraFilter();
+            return;
+        }
+
+        window.activeKpiFilter = filterType;
+        
+        // Highlight selected KPI card
+        document.querySelectorAll('.report-kpi-card').forEach(card => {
+            card.style.outline = 'none';
+        });
+        if (cardEl) {
+            cardEl.style.outline = '3px solid #3b82f6';
+            cardEl.style.outlineOffset = '2px';
+        }
+
+        const rows = document.querySelectorAll('#uraTable tbody tr.ura-data-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const uraStatus = (row.getAttribute('data-ura-status') || '').toUpperCase();
+            const payStatus = (row.getAttribute('data-payment-status') || '').toUpperCase();
+            const isDue = row.classList.contains('ura-row-due') || (uraStatus === 'UNPAID' && payStatus === 'PAID');
+            
+            let show = false;
+            if (filterType === 'DUE') {
+                show = isDue;
+            } else if (filterType === 'NOT_DUE') {
+                show = (uraStatus === 'UNPAID' && payStatus !== 'PAID');
+            } else if (filterType === 'PAID') {
+                show = (uraStatus === 'PAID');
+            } else if (filterType === 'OFFSET') {
+                show = (uraStatus === 'OFFSET');
+            } else if (filterType === 'ALL') {
+                show = true;
+            }
+
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Show reset badge & update count
+        const resetBadge = document.getElementById('uraFilterResetBadge');
+        if (resetBadge) resetBadge.style.display = 'inline-flex';
+
+        const countBadge = document.getElementById('uraInvoiceCount');
+        if (countBadge) countBadge.textContent = `${visibleCount} filtered invoice${visibleCount !== 1 ? 's' : ''}`;
+    };
+
+    window.clearUraFilter = function() {
+        window.activeKpiFilter = null;
+        document.querySelectorAll('.report-kpi-card').forEach(card => {
+            card.style.outline = 'none';
+        });
+
+        const rows = document.querySelectorAll('#uraTable tbody tr.ura-data-row');
+        rows.forEach(row => row.style.display = '');
+
+        const resetBadge = document.getElementById('uraFilterResetBadge');
+        if (resetBadge) resetBadge.style.display = 'none';
+
+        const countBadge = document.getElementById('uraInvoiceCount');
+        if (countBadge) countBadge.textContent = `${rows.length} invoices`;
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const params = new URLSearchParams(window.location.search);
+        const uraFilter = params.get('ura_filter');
+        if (uraFilter) {
+            const classMap = {
+                'DUE': '.kpi-ura-due',
+                'NOT_DUE': '.kpi-ura-not-due',
+                'PAID': '.kpi-ura-paid',
+                'OFFSET': '.kpi-ura-offset'
+            };
+            const targetCard = document.querySelector(classMap[uraFilter]);
+            window.toggleUraKpiFilter(uraFilter, targetCard);
+        }
+    });
+    
+    function exportSelectedMonthExcel() {
+        exportPaymentsExcel();
+    }
+    
+    function exportPaymentsExcel() {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('pay_start')) {
+            params.set('pay_start', '{{ pay_start_formatted if pay_start_formatted else "" }}');
+        }
+        if (!params.has('pay_end')) {
+            params.set('pay_end', '{{ pay_end_formatted if pay_end_formatted else "" }}');
+        }
+        window.location.href = `/api/export_payments_excel?${params.toString()}`;
+    }
+    
+    function clearPaymentPeriod() {
+        // Fade + slide the payments pane out before navigating
+        const pane = document.getElementById('payments-pane');
+        const btn  = document.getElementById('selectPeriodBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Clearing…';
+        }
+        if (pane) {
+            pane.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+            pane.style.opacity    = '0';
+            pane.style.transform  = 'translateY(-10px)';
+        }
+        setTimeout(function () {
+            const periodForm = document.getElementById('paymentPeriodForm');
+            if (periodForm) {
+                periodForm.querySelector('[name="pay_start"]').value = '';
+                periodForm.querySelector('[name="pay_end"]').value   = '';
+                periodForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+        }, 360);
+    }
+    
+    function setPresetRange(rangeType) {
+        const form = document.getElementById('paymentPeriodForm');
+        if (!form) return;
+
+        if (rangeType === 'all_time') {
+            form.querySelector('[name="pay_start"]').value = '';
+            form.querySelector('[name="pay_end"]').value = '';
+            return;
+        }
+
+        const today = new Date();
+        let start, end;
+        
+        if (rangeType === 'today') {
+            start = new Date(today);
+            end = new Date(today);
+        } else if (rangeType === 'this_month') {
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        } else if (rangeType === 'last_month') {
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            end = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (rangeType === 'this_year') {
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+        }
+        
+        const formatDate = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+        
+        form.querySelector('[name="pay_start"]').value = formatDate(start);
+        form.querySelector('[name="pay_end"]').value = formatDate(end);
+    }
+
+    let currentDemandNoteClientId = null;
+
+    function handleDemandNoteClick(clientId, clientName) {
+        // Fetch distinct unpaid areas for this client
+        fetch(`/api/client_unpaid_areas/${clientId}`)
+            .then(res => res.json())
+            .then(areas => {
+                if (!areas || areas.length === 0) {
+                    if (typeof showToast === 'function') {
+                        showToast(`There are no unpaid contracts for ${clientName}.`, 'warning');
+                    } else {
+                        alert(`There are no unpaid contracts for ${clientName}.`);
+                    }
+                    return;
+                }
+                
+                // If there's only ONE area, generate the report automatically
+                if (areas.length === 1) {
+                    const areaId = areas[0].id;
+                    openReport(`/print_client_statement/${clientId}?areas=${areaId}`);
+                    return;
+                }
+                
+                // Otherwise, show the selection modal
+                currentDemandNoteClientId = clientId;
+                const container = document.getElementById('areaCheckboxesContainer');
+                container.innerHTML = '';
+                
+                areas.forEach(area => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check p-2 mb-2 rounded border border-light bg-white shadow-sm d-flex align-items-center';
+                    div.innerHTML = `
+                        <input class="form-check-input ms-0 me-3 area-select-cb" type="checkbox" value="${area.id}" id="area_cb_${area.id}" checked style="width: 1.15em; height: 1.15em;">
+                        <label class="form-check-label fw-semibold text-dark mb-0 cursor-pointer" for="area_cb_${area.id}" style="cursor: pointer; user-select: none; flex-grow: 1;">
+                            ${area.name}
+                        </label>
+                    `;
+                    container.appendChild(div);
+                });
+                
+                // Reset select all checkbox to checked
+                const selectAllCB = document.getElementById('selectAllAreas');
+                if (selectAllCB) selectAllCB.checked = true;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('selectAreasModal'));
+                modal.show();
+            })
+            .catch(err => {
+                console.error('Error fetching client areas:', err);
+                if (typeof showToast === 'function') {
+                    showToast('Failed to check client demand note areas.', 'error');
+                } else {
+                    alert('Failed to check client demand note areas.');
+                }
+            });
+    }
+
+    function printClientStatementBtn() {
+        const clientSelect = document.getElementById('demand_statement_client');
+        if (!clientSelect.value) {
+            alert("Please select a client to print statement.");
+            return;
+        }
+        openReport(`/print_client_statement/${clientSelect.value}`);
+    }
+
+    function downloadClientStatementBtn() {
+        const clientSelect = document.getElementById('demand_statement_client');
+        if (!clientSelect.value) {
+            alert("Please select a client to download statement.");
+            return;
+        }
+        openReport(`/generate_client_statement/${clientSelect.value}`);
+    }
+
+    function openReport(url) { window.open(url, '_blank'); }
+
+    function editInPopup(id) {
+        fetch(`/api/sale/${id}`).then(r => r.json()).then(d => {
+            if (typeof populateEditModal === 'function') populateEditModal(d);
+            else if (typeof resetModal === 'function') {
+                resetModal();
+                const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newContractModal'));
+                modal.show();
+            }
+        });
+    }
+
+    // Wrap DOM-bound execution inside DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', function() {
+        const rptSearch  = document.getElementById('rptSearch');
+        const rptClear   = document.getElementById('rptClearBtn');
+        const rptCount   = document.getElementById('rptRowCount');
+
+        function updateRptCount() {
+            const visible = document.querySelectorAll('#reportTable .registry-row:not([style*="display: none"])').length;
+            if (rptCount) rptCount.textContent = visible + ' record' + (visible !== 1 ? 's' : '');
+        }
+
+        if (rptSearch) {
+            let rptSearchTimer;
+            rptSearch.addEventListener('input', function () {
+                const self = this;
+                clearTimeout(rptSearchTimer);
+                rptSearchTimer = setTimeout(() => {
+                    const q = self.value.toLowerCase();
+                    document.querySelectorAll('#reportTable .registry-row').forEach(row => {
+                        row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
+                    });
+                    if (rptClear) rptClear.classList.toggle('d-none', !q);
+                    updateRptCount();
+                }, 150);
+            });
+        }
+
+        window.clearRptSearch = function() {
+            if (rptSearch) { rptSearch.value = ''; rptSearch.dispatchEvent(new Event('input')); rptSearch.focus(); }
+        };
+
+        const demandsSearch = document.getElementById('demandsSearch');
+        const demandsClear  = document.getElementById('demandsClearBtn');
+        const demandsCount  = document.getElementById('demandsRowCount');
+
+        if (demandsSearch) {
+            let demandsSearchTimer;
+            demandsSearch.addEventListener('input', function () {
+                const self = this;
+                clearTimeout(demandsSearchTimer);
+                demandsSearchTimer = setTimeout(() => {
+                    const q = self.value.toLowerCase();
+                    let matchCount = 0;
+                    document.querySelectorAll('.demand-client-card').forEach(card => {
+                        const name = card.getAttribute('data-client-name') || '';
+                        const matches = name.includes(q);
+                        card.style.display = matches ? '' : 'none';
+                        if (matches) matchCount++;
+                    });
+                    if (demandsClear) demandsClear.classList.toggle('d-none', !q);
+                    if (demandsCount) demandsCount.textContent = matchCount + ' client' + (matchCount !== 1 ? 's' : '');
+                }, 150);
+            });
+        }
+
+        window.clearDemandsSearch = function() {
+            if (demandsSearch) { demandsSearch.value = ''; demandsSearch.dispatchEvent(new Event('input')); demandsSearch.focus(); }
+        };
+
+        // Select All supply areas toggler in modal
+        const selectAllCB = document.getElementById('selectAllAreas');
+        if (selectAllCB) {
+            selectAllCB.addEventListener('change', function(e) {
+                const checked = e.target.checked;
+                document.querySelectorAll('.area-select-cb').forEach(cb => {
+                    cb.checked = checked;
+                });
+            });
+        }
+
+        // Confirm print demand note button in modal
+        const confirmPrintBtn = document.getElementById('confirmPrintDemandNoteBtn');
+        if (confirmPrintBtn) {
+            confirmPrintBtn.addEventListener('click', function() {
+                if (!currentDemandNoteClientId) return;
+                
+                const selectedCBs = document.querySelectorAll('.area-select-cb:checked');
+                if (selectedCBs.length === 0) {
+                    alert('Please select at least one supply area to print.');
+                    return;
+                }
+                
+                const selectedIds = Array.from(selectedCBs).map(cb => cb.value).join(',');
+                
+                // Hide modal
+                const modalEl = document.getElementById('selectAreasModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                
+                // Open report
+                openReport(`/print_client_statement/${currentDemandNoteClientId}?areas=${selectedIds}`);
+            });
+        }
+
+        // ---- Column Toggles ----
+        document.querySelectorAll('.column-toggle-checkbox').forEach(cb => {
+            cb.addEventListener('change', function () {
+                const colClass = '.' + this.getAttribute('data-col');
+                document.querySelectorAll(colClass).forEach(el => {
+                    el.style.display = this.checked ? '' : 'none';
+                });
+            });
+        });
+
+        // Initialize filters on page load if URL params exist
+        if (window.location.search) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mappings = [
+                {param: 'client_id', id: 'rpt_filter_client'},
+                {param: 'area_id', id: 'rpt_filter_area'},
+                {param: 'contract_type', id: 'rpt_filter_type'},
+                {param: 'status', id: 'rpt_filter_status'},
+                {param: 'ownership', id: 'rpt_filter_ownership'},
+                {param: 'start_date', id: 'rpt_filter_start'},
+                {param: 'end_date', id: 'rpt_filter_end'},
+                {param: 'min_amount', id: 'rpt_filter_min'},
+                {param: 'max_amount', id: 'rpt_filter_max'}
+            ];
+            let active = false;
+            mappings.forEach(m => {
+                const val = urlParams.get(m.param);
+                if (val !== null) {
+                    const el = document.getElementById(m.id);
+                    if (el) { el.value = val; active = true; }
+                }
+            });
+            if (active && typeof applyReportFilters === 'function') applyReportFilters();
+            else updateRptCount();
+        } else {
+            updateRptCount();
+        }
+
+        // Move modal to body to prevent stacking context bug caused by .main-content transforms
+        const modalEl = document.getElementById('paymentPeriodModal');
+        if (modalEl) {
+            document.body.appendChild(modalEl);
+        }
+        const selectAreasModalEl = document.getElementById('selectAreasModal');
+        if (selectAreasModalEl) {
+            document.body.appendChild(selectAreasModalEl);
+        }
+
+        const periodForm = document.getElementById('paymentPeriodForm');
+        if (periodForm) {
+            periodForm.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent full page reload
+
+                // Sync inputs from `#rptFilterForm` (which is a div) into hidden fields in `paymentPeriodForm`
+                const mainFormDiv = document.getElementById('rptFilterForm');
+                if (mainFormDiv) {
+                    mainFormDiv.querySelectorAll('.filter-chip').forEach(el => {
+                        let name = el.id.replace('rpt_filter_', '');
+                        // Map id key to URL query param name
+                        if (name === 'client') name = 'client_id';
+                        if (name === 'area') name = 'area_id';
+                        if (name === 'type') name = 'contract_type';
+                        if (name === 'start') name = 'start_date';
+                        if (name === 'end') name = 'end_date';
+                        if (name === 'min') name = 'min_amount';
+                        if (name === 'max') name = 'max_amount';
+                        
+                        const value = el.value;
+                        if (value && !['pay_start', 'pay_end'].includes(name)) {
+                            let hiddenInput = periodForm.querySelector(`input[name="${name}"]`);
+                            if (!hiddenInput) {
+                                hiddenInput = document.createElement('input');
+                                hiddenInput.type = 'hidden';
+                                hiddenInput.name = name;
+                                periodForm.appendChild(hiddenInput);
+                            }
+                            hiddenInput.value = value;
+                        }
+                    });
+                }
+
+                // Hide the modal with a smooth transition
+                const modalEl = document.getElementById('paymentPeriodModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+
+                // Show a visual loading state in the payments table
+                const tbody = document.querySelector('#payments-pane tbody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5 fw-semibold"><div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>Filtering payments...</td></tr>';
+                }
+
+                // Fetch the updated table seamlessly
+                const formData = new FormData(periodForm);
+                const params = new URLSearchParams(formData);
+                const targetUrl = `/reports?${params.toString()}`;
+
+                // Update the browser URL without reloading so export buttons work correctly
+                window.history.pushState({}, '', targetUrl);
+
+                fetch(targetUrl)
+                    .then(response => response.text())
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newContent = doc.getElementById('reportTabsContent');
+                        if (newContent) {
+                            document.getElementById('reportTabsContent').innerHTML = newContent.innerHTML;
+                            // Reinitialize count
+                            updateRptCount();
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching updated reports:", err);
+                        if (typeof showToast === 'function') showToast("Error updating table.", "error");
+                    });
+            });
+        }
+    });
+
+    // ---- Tab Persistence & Deep Linking ----
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlTab = urlParams.get('tab');
+        let tabToOpen = null;
+        
+        if (urlTab) {
+            tabToOpen = document.getElementById(urlTab + '-tab');
+        }
+        
+        if (!tabToOpen) {
+            const activeTab = sessionStorage.getItem('reports_active_tab');
+            if (activeTab) {
+                tabToOpen = document.getElementById(activeTab);
+            }
+        }
+        
+        if (tabToOpen) {
+            const tab = new bootstrap.Tab(tabToOpen);
+            tab.show();
+        }
+        
+        document.querySelectorAll('#reportTabs button').forEach(button => {
+            button.addEventListener('shown.bs.tab', function (e) {
+                sessionStorage.setItem('reports_active_tab', e.target.id);
+            });
+        });
+    })();
+
+    // ---- URA Section: Status & KPI Filtering ----
+    window.activeKpiFilter = null;
+
+    window.toggleUraKpiFilter = function(type, cardEl) {
+        // Toggle the active state
+        if (window.activeKpiFilter === type) {
+            window.activeKpiFilter = null;
+            cardEl.classList.remove('active-filter');
+        } else {
+            window.activeKpiFilter = type;
+            // Clear other cards' active classes
+            document.querySelectorAll('.report-kpi-card').forEach(card => card.classList.remove('active-filter'));
+            cardEl.classList.add('active-filter');
+            
+            // Sync select dropdown: clear it so there is no visual mismatch
+            const el = document.getElementById('uraStatusFilter');
+            if (el) {
+                el.value = 'ALL';
+                el.classList.remove('active');
+            }
+        }
+        filterUraTable();
+    };
+
+    window.filterUraTable = function() {
+        const filterSelect = document.getElementById('uraStatusFilter');
+        const filterVal = (filterSelect ? filterSelect.value : 'ALL').toUpperCase();
+        const kpiFilter = window.activeKpiFilter;
+        const rows = document.querySelectorAll('.ura-data-row');
+        const tbody = document.querySelector('#uraTableWrapper tbody');
+        
+        if (tbody) {
+            // Smooth fade-out transition
+            tbody.style.transition = 'opacity 0.15s ease-out';
+            tbody.style.opacity = '0';
+            
+            setTimeout(() => {
+                let visibleCount = 0;
+                rows.forEach(row => {
+                    const status = (row.getAttribute('data-ura-status') || '').toUpperCase();
+                    const payStatus = (row.getAttribute('data-payment-status') || '').toUpperCase();
+                    
+                    let matches = false;
+                    if (kpiFilter) {
+                        if (kpiFilter === 'DUE') {
+                            matches = (status === 'UNPAID' && payStatus === 'PAID');
+                        } else if (kpiFilter === 'NOT_DUE') {
+                            matches = (status === 'UNPAID' && payStatus !== 'PAID');
+                        } else if (kpiFilter === 'PAID') {
+                            matches = (status === 'PAID');
+                        } else if (kpiFilter === 'OFFSET') {
+                            matches = (status === 'OFFSET');
+                        }
+                    } else {
+                        matches = (filterVal === 'ALL' || status === filterVal);
+                    }
+
+                    if (matches) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+                
+                const countSpan = document.getElementById('uraInvoiceCount');
+                if (countSpan) countSpan.textContent = visibleCount + (visibleCount === 1 ? ' invoice' : ' invoices');
+
+                // Toggle Reset Badge Visibility
+                const resetBadge = document.getElementById('uraFilterResetBadge');
+                if (resetBadge) {
+                    if (kpiFilter || filterVal !== 'ALL') {
+                        resetBadge.style.display = 'inline-flex';
+                    } else {
+                        resetBadge.style.display = 'none';
+                    }
+                }
+                
+                // Smooth fade-in transition
+                requestAnimationFrame(() => {
+                    tbody.style.transition = 'opacity 0.2s ease-in';
+                    tbody.style.opacity = '1';
+                });
+            }, 150);
+        }
+    };
+
+    window.handleUraFilterChange = function(el) {
+        // Clear active KPI filters on dropdown selection
+        window.activeKpiFilter = null;
+        document.querySelectorAll('.report-kpi-card').forEach(card => card.classList.remove('active-filter'));
+
+        if (el.value !== 'ALL') {
+            el.classList.add('active');
+        } else {
+            el.classList.remove('active');
+        }
+    };
+
+    window.clearUraFilter = function() {
+        window.activeKpiFilter = null;
+        document.querySelectorAll('.report-kpi-card').forEach(card => card.classList.remove('active-filter'));
+        
+        const el = document.getElementById('uraStatusFilter');
+        if (el) {
+            el.value = 'ALL';
+            el.classList.remove('active');
+        }
+        filterUraTable();
+    };
+
+    // ---- URA Section: Scoped Print (Popup-blocker safe) ----
+    window.printUraSection = function() {
+        const uraPane = document.getElementById('ura-pane');
+        if (!uraPane) return;
+        const kpiBlock = uraPane.querySelector('.card.p-3.border-0.mb-3.shadow-sm');
+        const tableWrapper = document.getElementById('uraTableWrapper');
+        if (!tableWrapper) return;
+        
+        const filterSelect = document.getElementById('uraStatusFilter');
+        const filterText = filterSelect ? filterSelect.options[filterSelect.selectedIndex].text : 'All URA Statuses';
+
+        let printArea = document.getElementById('ura-print-area');
+        if (!printArea) {
+            printArea = document.createElement('div');
+            printArea.id = 'ura-print-area';
+            document.body.appendChild(printArea);
+        }
+
+        // Build the print content
+        let html = '<h2><i style="margin-right:6px;">&#x1F9FE;</i>URA Tax Report</h2>';
+        html += `<p style="color:#64748b;margin-bottom:16px;font-size:11px;">VAT-rated invoices — URA status tracking (Filter: <strong>${filterText}</strong>). Printed: ${new Date().toLocaleString()}</p>`;
+        
+        if (kpiBlock) {
+            html += '<div>' + kpiBlock.outerHTML + '</div>';
+        }
+        
+        // Clone the table wrapper to avoid modifying the actual DOM
+        const tableClone = tableWrapper.cloneNode(true);
+        html += tableClone.outerHTML;
+        
+        printArea.innerHTML = html;
+        
+        // Use requestAnimationFrame to ensure the DOM is painted before printing
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const cleanup = () => {
+                    printArea.innerHTML = '';
+                    window.removeEventListener('afterprint', cleanup);
+                };
+                window.addEventListener('afterprint', cleanup);
+                
+                // For Safari, setTimeout is sometimes needed as a fallback if afterprint fails
+                setTimeout(() => {
+                    if (printArea.innerHTML !== '') {
+                        printArea.innerHTML = '';
+                    }
+                }, 120000); // clear after 2 mins if event fails
+                
+                window.print();
+            });
+        });
+    };
+
+    // ── URA Tab: Force repaint on show to fix ghost/blank cells ──
+    // When the URA tab is inside a Bootstrap tab-pane that starts hidden,
+    // sticky-column compositing layers can cause non-sticky tds to appear
+    // blank. Reading offsetHeight forces a synchronous reflow/repaint the
+    // moment the tab becomes visible, fixing the blank-until-hover bug.
+    document.addEventListener('shown.bs.tab', function(e) {
+        if (e.target && e.target.getAttribute('data-bs-target') === '#ura-pane') {
+            const tbody = document.querySelector('#uraTable tbody');
+            if (tbody) {
+                // Force reflow: reading offsetHeight triggers synchronous layout
+                void tbody.offsetHeight;
+                // Then schedule a style toggle to force GPU repaint
+                tbody.style.willChange = 'transform';
+                requestAnimationFrame(() => {
+                    tbody.style.willChange = 'auto';
+                });
+            }
+        }
+    });
+
+    // ── Reports page: Single click/tap toggle for filters ──
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterHeader = document.getElementById('reportsFilterHeader');
+        if (filterHeader) {
+            const toggleFilters = () => {
+                const collapseContainer = document.getElementById('reportsFilterChipsCollapse');
+                const chevron = document.getElementById('reportsFilterChevron');
+                if (collapseContainer && chevron) {
+                    if (!collapseContainer.classList.contains('show')) {
+                        collapseContainer.classList.add('show');
+                        chevron.style.transform = 'rotate(180deg)';
+                    } else {
+                        collapseContainer.classList.remove('show');
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                }
+            };
+
+            filterHeader.addEventListener('click', toggleFilters);
+        }
+    });
+</script>
+{% endblock %}
