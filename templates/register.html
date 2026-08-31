@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | ContractPro</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.css') }}">
+    <link href="{{ url_for('static', filename='css/inter.css') }}" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 1.5rem;
+        }
+
+        .welcome-container {
+            width: 100%;
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        .glass-card {
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+            width: 100%;
+        }
+
+        /* Left Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #ffffff;
+            padding: 50px 45px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 580px;
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.15) 0%, rgba(255, 255, 255, 0.02) 70%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .brand-icon-box {
+            width: 48px;
+            height: 48px;
+            background: #ffffff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+            flex-shrink: 0;
+        }
+
+        .brand-icon-box i {
+            font-size: 1.6rem;
+            color: #0d6efd;
+        }
+
+        .brand-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: 0.04em;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .brand-title span {
+            color: #60a5fa;
+        }
+
+        .hero-heading {
+            font-size: 2.35rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            margin-top: 3rem;
+            margin-bottom: 1rem;
+            color: #ffffff;
+        }
+
+        .hero-desc {
+            font-size: 1.05rem;
+            line-height: 1.55;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            max-width: 320px;
+        }
+
+        .hero-footer {
+            margin-top: auto;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .hero-footer .meta-text {
+            font-size: 0.8rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        /* Right Form Section */
+        .form-section {
+            padding: 45px 48px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-heading {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.35rem;
+        }
+
+        .form-subtitle {
+            font-size: 0.88rem;
+            color: #64748b;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group-custom {
+            margin-bottom: 1.1rem;
+        }
+
+        .form-label-custom {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.4rem;
+            letter-spacing: 0.01em;
+        }
+
+        .input-group-custom {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon-left {
+            position: absolute;
+            left: 14px;
+            color: #94a3b8;
+            font-size: 1.05rem;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            transition: color 0.2s ease;
+        }
+
+        .input-field-custom {
+            width: 100%;
+            padding: 0.72rem 2.8rem 0.72rem 2.65rem;
+            font-size: 0.92rem;
+            font-family: inherit;
+            color: #0f172a;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .input-field-custom:focus {
+            background: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+        }
+
+        .input-field-custom:focus ~ .input-icon-left {
+            color: #3b82f6;
+        }
+
+        .btn-toggle-pw {
+            position: absolute;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.1rem;
+            padding: 4px 6px;
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            transition: color 0.15s ease;
+        }
+
+        .btn-toggle-pw:hover {
+            color: #475569;
+        }
+
+        .btn-submit-primary {
+            width: 100%;
+            padding: 0.82rem 1.25rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+            color: #ffffff;
+            background: #0d6efd;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 14px rgba(13, 110, 253, 0.25);
+            margin-top: 0.75rem;
+        }
+
+        .btn-submit-primary:hover {
+            background: #0b5ed7;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(13, 110, 253, 0.35);
+        }
+
+        .btn-submit-primary:active {
+            transform: translateY(0);
+        }
+
+        .form-footer {
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid #f1f5f9;
+            text-align: center;
+        }
+
+        .form-footer p {
+            font-size: 0.86rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .form-footer a {
+            color: #0d6efd;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        .form-footer a:hover {
+            color: #0b5ed7;
+            text-decoration: underline;
+        }
+
+        /* Flash Message Alert */
+        .alert-custom {
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            line-height: 1.4;
+        }
+
+        .alert-danger-custom {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success-custom {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        @media (max-width: 767.98px) {
+            .hero-section {
+                padding: 35px 28px;
+                min-height: auto;
+            }
+            .hero-heading {
+                font-size: 1.85rem;
+                margin-top: 1.5rem;
+            }
+            .form-section {
+                padding: 35px 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="welcome-container">
+        <div class="glass-card">
+            <div class="row g-0">
+                
+                <!-- Left Hero Section -->
+                <div class="col-md-5 hero-section">
+                    <div>
+                        <!-- Logo & Brand Header -->
+                        <div class="d-flex align-items-center gap-3 mb-4">
+                            <div class="brand-icon-box">
+                                <i class="bi bi-briefcase-fill"></i>
+                            </div>
+                            <h4 class="brand-title">
+                                DATABASE<br><span>MANAGER</span>
+                            </h4>
+                        </div>
+
+                        <!-- Hero Main Heading & Description -->
+                        <h1 class="hero-heading">Join ContractPro.</h1>
+                        <p class="hero-desc">Set up your account to manage contracts, track sales, and generate invoices with ease.</p>
+                    </div>
+
+                    <!-- Bottom Meta Info -->
+                    <div class="hero-footer">
+                        <div class="meta-text">Version {{ app_version or '5.0.3' }} &bull; Portable Edition</div>
+                        <div class="meta-text">&copy; mutaawemandela +256784957400</div>
+                    </div>
+                </div>
+
+                <!-- Right Form Section -->
+                <div class="col-md-7 form-section">
+                    <div class="w-100">
+                        <h2 class="form-heading">Create Account</h2>
+                        <p class="form-subtitle">Fill in your details below to set up your account.</p>
+
+                        <!-- Flash Messages -->
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert-custom {% if category == 'success' %}alert-success-custom{% else %}alert-danger-custom{% endif %}">
+                                        <i class="bi {% if category == 'success' %}bi-check-circle-fill{% else %}bi-exclamation-circle-fill{% endif %} flex-shrink-0"></i>
+                                        <div>{{ message }}</div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+
+                        <!-- Registration Form -->
+                        <form action="{{ url_for('register') }}" method="POST">
+                            
+                            <!-- Full Name -->
+                            <div class="form-group-custom">
+                                <label class="form-label-custom" for="name">Full Name</label>
+                                <div class="input-group-custom">
+                                    <input type="text" id="name" name="name" class="input-field-custom" placeholder="e.g. John Doe" required autofocus>
+                                    <span class="input-icon-left">
+                                        <i class="bi bi-person-badge-fill"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div class="form-group-custom">
+                                <label class="form-label-custom" for="phone">Phone Number</label>
+                                <div class="input-group-custom">
+                                    <input type="tel" id="phone" name="phone" class="input-field-custom" placeholder="e.g. +256 700 000000" required>
+                                    <span class="input-icon-left">
+                                        <i class="bi bi-telephone-fill"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Username -->
+                            <div class="form-group-custom">
+                                <label class="form-label-custom" for="username">Username</label>
+                                <div class="input-group-custom">
+                                    <input type="text" id="username" name="username" class="input-field-custom" placeholder="e.g. johndoe" required autocomplete="username">
+                                    <span class="input-icon-left">
+                                        <i class="bi bi-person-fill"></i>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Password Field with Toggle -->
+                            <div class="form-group-custom">
+                                <label class="form-label-custom" for="password">Password</label>
+                                <div class="input-group-custom">
+                                    <input type="password" id="password" name="password" class="input-field-custom" placeholder="At least 6 characters" required autocomplete="new-password">
+                                    <span class="input-icon-left">
+                                        <i class="bi bi-lock-fill"></i>
+                                    </span>
+                                    <button type="button" class="btn-toggle-pw" id="togglePasswordBtn" aria-label="Toggle password visibility">
+                                        <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Confirm Password Field with Toggle -->
+                            <div class="form-group-custom">
+                                <label class="form-label-custom" for="confirm_password">Confirm Password</label>
+                                <div class="input-group-custom">
+                                    <input type="password" id="confirm_password" name="confirm_password" class="input-field-custom" placeholder="Repeat your password" required autocomplete="new-password">
+                                    <span class="input-icon-left">
+                                        <i class="bi bi-shield-lock-fill"></i>
+                                    </span>
+                                    <button type="button" class="btn-toggle-pw" id="toggleConfirmPasswordBtn" aria-label="Toggle confirm password visibility">
+                                        <i class="bi bi-eye" id="toggleConfirmPasswordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn-submit-primary">
+                                <span>Create My Account</span>
+                                <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </form>
+
+                        <!-- Footer Link to Sign In -->
+                        <div class="form-footer">
+                            <p>Already have an account? <a href="{{ url_for('google_login_page') }}">Sign In</a></p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Password visibility toggle script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function setupToggle(btnId, inputId, iconId) {
+                const btn = document.getElementById(btnId);
+                const input = document.getElementById(inputId);
+                const icon = document.getElementById(iconId);
+                if (btn && input && icon) {
+                    btn.addEventListener('click', function() {
+                        const isPassword = input.getAttribute('type') === 'password';
+                        input.setAttribute('type', isPassword ? 'text' : 'password');
+                        icon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+                    });
+                }
+            }
+            setupToggle('togglePasswordBtn', 'password', 'togglePasswordIcon');
+            setupToggle('toggleConfirmPasswordBtn', 'confirm_password', 'toggleConfirmPasswordIcon');
+        });
+    </script>
+</body>
+</html>

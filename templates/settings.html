@@ -1,0 +1,598 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+.settings-card {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.settings-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.07) !important;
+}
+.asset-card {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px;
+    background: #f8fafc;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.asset-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.06) !important;
+    background: #ffffff;
+}
+.section-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+.asset-preview-box {
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.asset-card:hover .asset-preview-box {
+    border-color: #3b82f6;
+}
+.stat-pill {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+}
+.rate-input-card {
+    border: 1px solid #e2e8f0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.rate-input-card:focus-within {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.simulator-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+@media (max-width: 767.98px) {
+    .simulator-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+.sim-metric-card {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.sim-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06) !important;
+}
+</style>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-2 border-bottom">
+    <div class="mb-3 mb-md-0">
+        <h2 class="fw-bold mb-1 text-dark">Company Settings</h2>
+        <p class="text-muted mb-0">Manage company details, branding assets, banking information, user profile image, default percentage rates, and currency.</p>
+    </div>
+    
+    <div class="d-flex flex-wrap gap-2">
+        <div class="stat-pill">
+            <i class="bi bi-currency-exchange me-1 text-primary"></i>
+            Currency: <span class="text-dark fw-bold" id="headerCurrencyPill">{{ settings.currency or 'UGX' }}</span>
+        </div>
+        <div class="stat-pill">
+            <i class="bi bi-percent me-1 text-info"></i>
+            VAT: <span class="text-dark fw-bold">{{ settings.vat_rate if settings.vat_rate is not none else 18.0 }}%</span>
+        </div>
+        <div class="stat-pill">
+            <i class="bi bi-shield-shaded me-1 text-warning"></i>
+            WHT: <span class="text-dark fw-bold">{{ settings.wht_rate if settings.wht_rate is not none else 6.0 }}%</span>
+        </div>
+    </div>
+</div>
+
+<form action="{{ url_for('update_settings') }}" method="POST" enctype="multipart/form-data" id="settingsForm">
+    
+    <!-- SECTION 1: GENERAL COMPANY PROFILE & LEGAL REGISTRATION -->
+    <div class="settings-card p-4 mb-4">
+        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+            <div class="section-badge bg-primary-subtle text-primary me-2">1</div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">General Company Profile & Legal Registration</h5>
+                <small class="text-muted">Primary identity, registration credentials, and official contact channels.</small>
+            </div>
+        </div>
+        
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Company Registered Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-building"></i></span>
+                    <input type="text" name="name" class="form-control fw-bold" value="{{ settings.name or '' }}" placeholder="Enter company name">
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Company Registration / Incorporation No.</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-card-heading"></i></span>
+                    <input type="text" name="reg_number" class="form-control" value="{{ settings.reg_number or '' }}" placeholder="Enter registration number">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Tax Identification Number (TIN)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-file-earmark-text"></i></span>
+                    <input type="text" name="tin_number" class="form-control fw-semibold" value="{{ settings.tin_number or '' }}" placeholder="Enter TIN number">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Official Phone Contact</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-telephone"></i></span>
+                    <input type="text" name="contact" class="form-control" value="{{ settings.contact or '' }}" placeholder="Enter phone contact">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Official Email Address</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+                    <input type="email" name="email" class="form-control" value="{{ settings.email or '' }}" placeholder="Enter email address">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Company Website URL</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-globe"></i></span>
+                    <input type="text" name="website" class="form-control" value="{{ settings.website or '' }}" placeholder="Enter website URL">
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-bold small text-secondary">Physical Business Address</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-geo-alt"></i></span>
+                    <input type="text" name="address" class="form-control" value="{{ settings.address or '' }}" placeholder="Enter physical address">
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-bold small text-secondary">Document Footer / Watermark Note</label>
+                <input type="text" name="footer" class="form-control" value="{{ settings.footer or '' }}" placeholder="Enter document footer note">
+                <small class="text-muted mt-1 d-block">Appears automatically at the bottom of generated PDF contracts and reports.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION 2: BRAND IDENTITY & USER PROFILE IMAGE -->
+    <div class="settings-card p-4 mb-4">
+        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+            <div class="section-badge bg-info-subtle text-info me-2">2</div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Brand Identity & User Profile Image</h5>
+                <small class="text-muted">Upload company logos, letterhead headers, and your personal user profile picture.</small>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- User Profile Picture -->
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 p-3 asset-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label fw-bold small text-dark mb-0"><i class="bi bi-person-square me-1"></i> User Profile Picture</label>
+                        {% set has_avatar = session.get('user_id') %}
+                        <span class="badge bg-secondary-subtle text-secondary small">My Profile</span>
+                    </div>
+                    
+                    <div class="asset-preview-box mb-3">
+                        <img src="{{ url_for('get_user_avatar', user_id=session.get('user_id')) }}" alt="User Avatar" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px;">
+                    </div>
+                    
+                    <input type="file" name="profile_picture" class="form-control form-control-sm" accept="image/*">
+                    <small class="text-muted mt-2 d-block" style="font-size: 0.75rem;">Displayed in sidebar & header profile badge.</small>
+                </div>
+            </div>
+
+            <!-- Company Logo -->
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 p-3 asset-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label fw-bold small text-dark mb-0"><i class="bi bi-image me-1"></i> Company Main Logo</label>
+                        {% if branding and branding.get('logo') %}
+                        <span class="badge bg-success-subtle text-success small">Uploaded</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary small">Empty</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="asset-preview-box mb-3">
+                        {% if branding and branding.get('logo') %}
+                        <img src="{{ branding['logo'] }}" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px;">
+                        {% else %}
+                        <div class="text-center text-muted">
+                            <i class="bi bi-image" style="font-size: 1.8rem;"></i>
+                            <div class="small mt-1 text-muted" style="font-size: 0.75rem;">No Image Uploaded</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <input type="file" name="logo" class="form-control form-control-sm" accept="image/*">
+                    <small class="text-muted mt-2 d-block" style="font-size: 0.75rem;">Used in main headers & PDF contracts.</small>
+                </div>
+            </div>
+
+            <!-- Letterhead Header -->
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 p-3 asset-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label fw-bold small text-dark mb-0"><i class="bi bi-layout-three-columns me-1"></i> Letterhead Header</label>
+                        {% if branding and branding.get('header') %}
+                        <span class="badge bg-success-subtle text-success small">Uploaded</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary small">Empty</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="asset-preview-box mb-3">
+                        {% if branding and branding.get('header') %}
+                        <img src="{{ branding['header'] }}" alt="Header" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px;">
+                        {% else %}
+                        <div class="text-center text-muted">
+                            <i class="bi bi-layout-three-columns" style="font-size: 1.8rem;"></i>
+                            <div class="small mt-1 text-muted" style="font-size: 0.75rem;">No Image Uploaded</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <input type="file" name="header" class="form-control form-control-sm" accept="image/*">
+                    <small class="text-muted mt-2 d-block" style="font-size: 0.75rem;">Full width image for top of PDFs.</small>
+                </div>
+            </div>
+
+            <!-- Letterhead Footer -->
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 p-3 asset-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label fw-bold small text-dark mb-0"><i class="bi bi-layout-split me-1"></i> Letterhead Footer</label>
+                        {% if branding and branding.get('footer') %}
+                        <span class="badge bg-success-subtle text-success small">Uploaded</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary small">Empty</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="asset-preview-box mb-3">
+                        {% if branding and branding.get('footer') %}
+                        <img src="{{ branding['footer'] }}" alt="Footer" style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px;">
+                        {% else %}
+                        <div class="text-center text-muted">
+                            <i class="bi bi-layout-split" style="font-size: 1.8rem;"></i>
+                            <div class="small mt-1 text-muted" style="font-size: 0.75rem;">No Image Uploaded</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <input type="file" name="footer" class="form-control form-control-sm" accept="image/*">
+                    <small class="text-muted mt-2 d-block" style="font-size: 0.75rem;">Full width image for bottom of PDFs.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION 3: BANKING INFORMATION -->
+    <div class="settings-card p-4 mb-4">
+        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+            <div class="section-badge bg-warning-subtle text-warning me-2">3</div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Banking & Payment Settlement Details</h5>
+                <small class="text-muted">Direct settlement bank account details embedded on invoices and payment requests.</small>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Bank Institution Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-bank"></i></span>
+                    <input type="text" name="bank_name" class="form-control" value="{{ settings.bank_name or '' }}" placeholder="Enter bank name">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Account Holder Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-person-bounding-box"></i></span>
+                    <input type="text" name="bank_account_name" class="form-control fw-semibold" value="{{ settings.bank_account_name or '' }}" placeholder="Enter account holder name">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Account Number / IBAN</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-credit-card-2-front"></i></span>
+                    <input type="text" name="bank_account_number" class="form-control font-monospace fw-bold text-primary" value="{{ settings.bank_account_number or '' }}" placeholder="Enter account number">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary">Bank Branch / SWIFT Code</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-geo"></i></span>
+                    <input type="text" name="bank_branch" class="form-control" value="{{ settings.bank_branch or '' }}" placeholder="Enter branch or SWIFT code">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION 4: DEFAULT CURRENCIES -->
+    <div class="settings-card p-4 mb-4">
+        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+            <div class="section-badge bg-success-subtle text-success me-2">4</div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">System Default Currency Settings</h5>
+                <small class="text-muted">Set the primary currency used across financial reports, dashboards, and contract invoices.</small>
+            </div>
+        </div>
+
+        <div class="row g-3 align-items-end">
+            {% set active_curr = (settings.currency or 'UGX')|upper %}
+            <div class="col-md-6 col-lg-5">
+                <label class="form-label fw-bold small text-secondary">Primary Operating Currency</label>
+                <select name="currency" id="currencySelect" class="form-select form-select-lg fw-bold text-primary" onchange="toggleCustomCurrency(this.value)">
+                    <option value="UGX" {% if active_curr == 'UGX' %}selected{% endif %}>UGX — Uganda Shilling</option>
+                    <option value="USD" {% if active_curr == 'USD' %}selected{% endif %}>USD — US Dollar ($)</option>
+                    <option value="EUR" {% if active_curr == 'EUR' %}selected{% endif %}>EUR — Euro (€)</option>
+                    <option value="GBP" {% if active_curr == 'GBP' %}selected{% endif %}>GBP — British Pound (£)</option>
+                    <option value="KES" {% if active_curr == 'KES' %}selected{% endif %}>KES — Kenyan Shilling</option>
+                    <option value="TZS" {% if active_curr == 'TZS' %}selected{% endif %}>TZS — Tanzanian Shilling</option>
+                    <option value="RWF" {% if active_curr == 'RWF' %}selected{% endif %}>RWF — Rwandan Franc</option>
+                    <option value="ZAR" {% if active_curr == 'ZAR' %}selected{% endif %}>ZAR — South African Rand</option>
+                    <option value="AED" {% if active_curr == 'AED' %}selected{% endif %}>AED — UAE Dirham</option>
+                    <option value="CAD" {% if active_curr == 'CAD' %}selected{% endif %}>CAD — Canadian Dollar ($)</option>
+                    <option value="AUD" {% if active_curr == 'AUD' %}selected{% endif %}>AUD — Australian Dollar ($)</option>
+                    <option value="NGN" {% if active_curr == 'NGN' %}selected{% endif %}>NGN — Nigerian Naira (₦)</option>
+                    <option value="INR" {% if active_curr == 'INR' %}selected{% endif %}>INR — Indian Rupee (₹)</option>
+                    <option value="CUSTOM" {% if active_curr not in ['UGX', 'USD', 'EUR', 'GBP', 'KES', 'TZS', 'RWF', 'ZAR', 'AED', 'CAD', 'AUD', 'NGN', 'INR'] %}selected{% endif %}>Custom Currency Code...</option>
+                </select>
+                
+                <div id="customCurrencyContainer" class="mt-2 {% if active_curr in ['UGX', 'USD', 'EUR', 'GBP', 'KES', 'TZS', 'RWF', 'ZAR', 'AED', 'CAD', 'AUD', 'NGN', 'INR'] %}d-none{% endif %}">
+                    <input type="text" id="customCurrencyInput" class="form-control text-uppercase fw-bold border-primary" placeholder="Enter Currency Code (e.g. ZMW, SAR, GHS)" value="{{ active_curr if active_curr not in ['UGX', 'USD', 'EUR', 'GBP', 'KES', 'TZS', 'RWF', 'ZAR', 'AED', 'CAD', 'AUD', 'NGN', 'INR'] else '' }}">
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-7">
+                <div class="p-3 bg-light rounded-3 border">
+                    <small class="fw-bold text-uppercase text-muted d-block mb-1" style="font-size: 0.75rem; letter-spacing: 0.5px;">Live Currency Display Preview</small>
+                    <div class="fs-5 fw-bold text-dark font-monospace" id="currencyPreview">
+                        <span id="previewCurrencyCode">{{ active_curr }}</span> 1,250,000.00
+                    </div>
+                    <small class="text-muted">Used automatically for contract totals, tax subtotals, and analytics graphs.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION 5: DEFAULT FINANCIAL PERCENTAGES & STATUTORY RATES -->
+    <div class="settings-card p-4 mb-4">
+        <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+            <div class="section-badge bg-danger-subtle text-danger me-2">5</div>
+            <div>
+                <h5 class="fw-bold mb-0 text-dark">Default Financial Percentages & Statutory Rates</h5>
+                <small class="text-muted">Configure default tax, withholding, and profit margin percentages applied to contracts.</small>
+            </div>
+        </div>
+
+        <div class="row g-3 align-items-stretch">
+            <div class="col-md-6 col-lg-3">
+                <div class="rate-input-card bg-white p-3 rounded-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <label class="form-label fw-bold small text-secondary mb-2 d-flex align-items-end" style="min-height: 38px;">Default VAT Rate (%)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.1" min="0" max="100" name="vat_rate" id="vatRateInput" class="form-control fw-bold text-primary" value="{{ settings.vat_rate if settings.vat_rate is not none else 18.0 }}" required oninput="updateCalculationPreview()">
+                            <span class="input-group-text bg-light fw-bold">%</span>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block pt-1 border-top" style="font-size: 0.75rem;">Value Added Tax applied to VAT-rated contracts.</small>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+                <div class="rate-input-card bg-white p-3 rounded-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <label class="form-label fw-bold small text-secondary mb-2 d-flex align-items-end" style="min-height: 38px;">Default WHT Rate (%)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.1" min="0" max="100" name="wht_rate" id="whtRateInput" class="form-control fw-bold text-danger" value="{{ settings.wht_rate if settings.wht_rate is not none else 6.0 }}" required oninput="updateCalculationPreview()">
+                            <span class="input-group-text bg-light fw-bold">%</span>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block pt-1 border-top" style="font-size: 0.75rem;">Withholding Tax withheld on contracts.</small>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+                <div class="rate-input-card bg-white p-3 rounded-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <label class="form-label fw-bold small text-secondary mb-2 d-flex align-items-end" style="min-height: 38px;">Default VAT WHT Rate</label>
+                        <div class="input-group">
+                            <input type="number" step="0.1" min="0" max="100" name="vwht_rate" id="vwhtRateInput" class="form-control fw-bold text-warning" value="{{ settings.vwht_rate if settings.vwht_rate is not none else 6.0 }}" required oninput="updateCalculationPreview()">
+                            <span class="input-group-text bg-light fw-bold">%</span>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block pt-1 border-top" style="font-size: 0.75rem;">VAT Withholding Tax deducted by client.</small>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3">
+                <div class="rate-input-card bg-white p-3 rounded-3 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <label class="form-label fw-bold small text-secondary mb-2 d-flex align-items-end" style="min-height: 38px;">Default Target Profit Margin (%)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.5" min="0" max="100" name="profit_margin" id="profitMarginInput" class="form-control fw-bold text-success" value="{{ settings.profit_margin if settings.profit_margin is not none else 50.0 }}" required oninput="updateCalculationPreview()">
+                            <span class="input-group-text bg-light fw-bold">%</span>
+                        </div>
+                    </div>
+                    <small class="text-muted mt-2 d-block pt-1 border-top" style="font-size: 0.75rem;">Profit margin estimate when cost is pending.</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- INTERACTIVE TAX & PERCENTAGE CALCULATOR PREVIEW -->
+        <div class="mt-4 p-3 bg-light rounded-3 border">
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <span class="fw-bold text-dark small text-uppercase"><i class="bi bi-calculator me-1 text-primary"></i> Live Contract Calculation Simulator</span>
+                <div class="d-flex align-items-center gap-2">
+                    <label class="fw-semibold small text-secondary mb-0" style="white-space:nowrap;">Sample Contract Total:</label>
+                    <div class="input-group" style="width: 200px;">
+                        <input type="number" id="sampleContractInput" class="form-control form-control-sm fw-bold font-monospace text-dark"
+                               value="100000000" min="0" step="1000000"
+                               oninput="updateCalculationPreview()" style="border-radius: 6px 0 0 6px;">
+                        <span class="input-group-text bg-white fw-bold small simCurrency" style="border-radius: 0 6px 6px 0;">UGX</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row row-cols-2 row-cols-md-5 g-2 text-center align-items-stretch">
+                <div class="col">
+                    <div class="sim-metric-card bg-white p-3 rounded-3 border h-100 d-flex flex-column justify-content-center align-items-center">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.72rem; white-space: nowrap;">VAT Component (<span id="simVatRateLabel">18</span>%)</small>
+                        <strong class="text-primary fs-6" id="simVatVal">15,254,237</strong>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="sim-metric-card bg-white p-3 rounded-3 border h-100 d-flex flex-column justify-content-center align-items-center">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.72rem; white-space: nowrap;">WHT (<span id="simWhtRateLabel">6</span>%)</small>
+                        <strong class="text-danger fs-6" id="simWhtVal">5,084,746</strong>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="sim-metric-card bg-white p-3 rounded-3 border h-100 d-flex flex-column justify-content-center align-items-center">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.72rem; white-space: nowrap;">VWHT (<span id="simVwhtRateLabel">6</span>%)</small>
+                        <strong class="text-warning fs-6" id="simVwhtVal">5,084,746</strong>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="sim-metric-card bg-white p-3 rounded-3 border h-100 d-flex flex-column justify-content-center align-items-center">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.72rem; white-space: nowrap;">Est. Profit (<span id="simProfitRateLabel">50</span>%)</small>
+                        <strong class="text-success fs-6" id="simProfitVal">42,372,881</strong>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="sim-metric-card bg-white p-3 rounded-3 border h-100 d-flex flex-column justify-content-center align-items-center">
+                        <small class="text-muted d-block mb-1" style="font-size: 0.72rem; white-space: nowrap;">Net Cash Receivable</small>
+                        <strong class="text-dark fs-6" id="simNetVal">89,830,508</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- NON-FLOATING SAVE BUTTON AT BOTTOM OF PAGE -->
+    <div class="settings-card p-4 mb-5 text-center">
+        <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold shadow-sm">
+            <i class="bi bi-check-circle-fill me-2"></i> Save Company Settings
+        </button>
+        <div class="text-muted small mt-2"><i class="bi bi-shield-check text-success me-1"></i> Changes will update system templates and report generators instantly.</div>
+    </div>
+</form>
+
+<script>
+function getActiveCurrencyCode() {
+    const select = document.getElementById('currencySelect');
+    const input = document.getElementById('customCurrencyInput');
+    if (select.value === 'CUSTOM') {
+        return (input.value || 'CUSTOM').trim().toUpperCase();
+    }
+    return select.value.toUpperCase();
+}
+
+function toggleCustomCurrency(val) {
+    const container = document.getElementById('customCurrencyContainer');
+    const input = document.getElementById('customCurrencyInput');
+    const select = document.getElementById('currencySelect');
+    
+    if (val === 'CUSTOM') {
+        container.classList.remove('d-none');
+        input.focus();
+        input.setAttribute('name', 'currency');
+        select.removeAttribute('name');
+    } else {
+        container.classList.add('d-none');
+        select.setAttribute('name', 'currency');
+        input.removeAttribute('name');
+    }
+    updateCurrencyPreview();
+}
+
+function updateCurrencyPreview() {
+    const curr = getActiveCurrencyCode();
+    document.getElementById('previewCurrencyCode').innerText = curr;
+    document.getElementById('headerCurrencyPill').innerText = curr;
+    document.querySelectorAll('.simCurrency').forEach(el => el.innerText = curr);
+}
+
+function updateCalculationPreview() {
+    const totalContract = parseFloat(document.getElementById('sampleContractInput').value) || 0;
+    const vatRate = parseFloat(document.getElementById('vatRateInput').value) || 0;
+    const whtRate = parseFloat(document.getElementById('whtRateInput').value) || 0;
+    const vwhtRate = parseFloat(document.getElementById('vwhtRateInput').value) || 0;
+    const profitMargin = parseFloat(document.getElementById('profitMarginInput').value) || 0;
+    
+    // VAT is inclusive in Total: VAT = total * vatRate / (100 + vatRate)
+    const vatVal = Math.round(totalContract * vatRate / (100 + vatRate));
+    const baseNet = totalContract - vatVal;  // exclusive of VAT amount
+    
+    // WHT = baseNet × WHT%  (withheld if gov or VAT-rated)
+    const whtVal = Math.round(baseNet * (whtRate / 100));
+    
+    // VWHT = baseNet × VWHT%  (client withholds this from VAT portion — so company gets only (VATr - VWHTr)% VAT)
+    const vwhtVal = Math.round(baseNet * (vwhtRate / 100));
+    
+    // Est. Profit = baseNet × profitMargin%
+    const profitVal = Math.round(baseNet * (profitMargin / 100));
+    
+    // Net Cash Receivable = Total − (WHT + VWHT)
+    const netVal = totalContract - whtVal - vwhtVal;
+
+    const fmt = num => num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    document.getElementById('simVatRateLabel').innerText = vatRate;
+    document.getElementById('simWhtRateLabel').innerText = whtRate;
+    document.getElementById('simVwhtRateLabel').innerText = vwhtRate;
+    document.getElementById('simProfitRateLabel').innerText = profitMargin;
+
+    document.getElementById('simVatVal').innerText = fmt(vatVal);
+    document.getElementById('simWhtVal').innerText = fmt(whtVal);
+    document.getElementById('simVwhtVal').innerText = fmt(vwhtVal);
+    document.getElementById('simProfitVal').innerText = fmt(profitVal);
+    document.getElementById('simNetVal').innerText = fmt(netVal);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const customInput = document.getElementById('customCurrencyInput');
+    if (customInput) {
+        customInput.addEventListener('input', updateCurrencyPreview);
+    }
+    updateCurrencyPreview();
+    updateCalculationPreview();
+});
+</script>
+{% endblock %}

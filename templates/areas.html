@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Supply Areas</h2>
+        <p class="text-muted mb-0">Manage the areas where your company supplies goods and services.</p>
+    </div>
+    {% if session.get('is_admin') %}
+    <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addAreaModal" style="border-radius: 12px; padding: 10px 22px;">
+        <i class="bi bi-plus-circle me-2"></i> Add Area
+    </button>
+    {% endif %}
+</div>
+
+{% set bg_accents = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.12)', 'rgba(245, 158, 11, 0.12)', 'rgba(139, 92, 246, 0.12)', 'rgba(244, 63, 94, 0.12)', 'rgba(71, 85, 105, 0.12)'] %}
+{% set text_accents = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#e11d48', '#475569'] %}
+
+<div class="area-list-container d-flex flex-column gap-3 mb-5">
+    {% if areas %}
+        {% for a in areas %}
+        {% set color_idx = loop.index0 % 6 %}
+        <div class="area-item-card d-flex align-items-center p-3 bg-white rounded-4 shadow-sm" style="border: 1.5px solid #f1f5f9 !important; cursor: pointer;" onclick="showAreaSnapshot({{ a.id }})" title="Click to view portfolio snapshot">
+            <!-- Left Icon Avatar -->
+            <div class="icon-box-avatar d-flex align-items-center justify-content-center me-4 rounded-4" style="width: 54px; height: 54px; background: {{ bg_accents[color_idx] }}; color: {{ text_accents[color_idx] }}; flex-shrink: 0;">
+                <i class="bi bi-geo-alt-fill fs-4"></i>
+            </div>
+            
+            <!-- Info Section -->
+            <div class="flex-grow-1 min-w-0 text-start">
+                <h5 class="fw-bold text-dark mb-1 text-truncate" style="font-size: 1.15rem; letter-spacing: -0.01em;">{{ a.name }}</h5>
+                <div class="d-flex align-items-center gap-3 text-muted small fw-semibold">
+                    <span><i class="bi bi-file-earmark-text me-1"></i> {{ a.contract_count }} Contracts</span>
+                    <span class="text-silver">•</span>
+                    <span class="text-success"><i class="bi bi-cash-stack me-1"></i> {{ currency or 'UGX' }} {{ "{:,.0f}".format(a.total_value) }}</span>
+                </div>
+            </div>
+            
+            <!-- Actions Section -->
+            <div class="d-flex align-items-center gap-2">
+                {% if session.get('is_admin') %}
+                <button onclick="event.stopPropagation(); openEditArea({{ a.id }}, '{{ a.name|replace("'","\\'")|e }}')" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1.5 fw-bold" style="font-size: 0.8rem; border-width: 1.5px;">
+                    <i class="bi bi-pencil me-1"></i> Edit
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5 border rounded-4 border-dashed bg-white shadow-sm" style="border-style: dashed !important; border-width: 2px !important; border-color: #cbd5e1 !important; border-radius: 16px !important;">
+            <i class="bi bi-geo-alt text-muted fs-1 mb-3"></i>
+            <h6 class="fw-bold text-dark">No Supply Areas Found</h6>
+            <p class="text-muted small mb-0">Get started by creating a new supply area using the button above.</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .area-item-card {
+        transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .area-item-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05) !important;
+        border-color: rgba(37, 99, 235, 0.15) !important;
+    }
+    .icon-box-avatar {
+        transition: transform 0.2s ease;
+    }
+    .area-item-card:hover .icon-box-avatar {
+        transform: scale(1.05);
+    }
+    .text-silver {
+        color: #cbd5e1;
+    }
+</style>
+
+<script>
+function openEditArea(id, name) {
+    document.getElementById('editAreaId').value = id;
+    document.getElementById('editAreaName').value = name;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('editAreaModal')).show();
+}
+</script>
+{% endblock %}
+
+{% block modals %}
+<!-- Add Area Modal -->
+<div class="modal fade" id="addAreaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('add_area') }}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Add New Supply Area</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <label class="form-label small fw-bold text-muted">Area Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Kampala Central" required style="border-radius: 10px; font-weight: 600;">
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 20px;">Cancel</button>
+                <button type="submit" class="btn btn-primary fw-bold" style="border-radius: 12px; padding: 10px 24px;">Save Area</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Area Modal -->
+<div class="modal fade" id="editAreaModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{{ url_for('update_area') }}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">Edit Supply Area</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <input type="hidden" name="id" id="editAreaId">
+                <label class="form-label small fw-bold text-muted">Area Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" id="editAreaName" class="form-control" required style="border-radius: 10px; font-weight: 600;">
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 20px;">Cancel</button>
+                <button type="submit" class="btn btn-success fw-bold text-white" style="border-radius: 12px; padding: 10px 24px;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

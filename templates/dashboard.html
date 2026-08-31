@@ -1,0 +1,675 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<!-- Dashboard Header -->
+<div class="card border-0 shadow-sm mb-5 overflow-hidden"
+    style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 20px;">
+    <div class="card-body p-5">
+        <div class="row align-items-center" style="min-height: 90px;">
+            <div class="col-auto">
+                {% if branding and branding.logo %}
+                <img src="{{ branding.logo }}" alt="Logo" class="rounded-3 shadow"
+                    style="width: 90px; height: 90px; object-fit: contain; background: white; padding: 8px;">
+                {% else %}
+                <div class="d-flex align-items-center justify-content-center rounded-3 shadow"
+                    style="width: 90px; height: 90px; background: rgba(255,255,255,0.1);">
+                    <i class="bi bi-briefcase-fill text-white" style="font-size: 3rem;"></i>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col">
+                <h2 class="fw-bold text-white mb-1" style="font-size: 1.8rem;">{{ settings.name if settings else 'ContractPro' }}</h2>
+                <p class="text-white text-opacity-75 mb-0" style="font-size: 0.95rem;">
+                    <i class="bi bi-geo-alt-fill me-1" style="color: #60a5fa;"></i>{{ settings.address if settings else '' }}
+                </p>
+            </div>
+            <div class="col-auto text-end d-flex flex-column align-items-end justify-content-between mt-3 mt-md-0" style="min-height: 100px;">
+                <div class="mb-2">
+                    <p class="text-white text-opacity-50 small mb-0" style="font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase;">Today's Date</p>
+                    <span class="text-white fw-bold d-flex align-items-center gap-1.5 justify-content-end" style="font-size: 1.0rem;">
+                        <i class="bi bi-calendar3 opacity-75" style="margin-right: 8px !important;"></i><span id="dashDate"></span>
+                    </span>
+                </div>
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                    <a href="{{ url_for('save_current') }}" class="btn fw-bold py-1 shadow-sm d-flex align-items-center justify-content-center gap-1.5" 
+                        style="width: 95px; border-radius: 8px; font-size: 0.76rem; border: 1.5px solid rgba(59,130,246,0.4) !important; color: #60a5fa !important; background: rgba(59,130,246,0.06); transition: all 0.2s ease;"
+                        onmouseover="this.style.background='rgba(59,130,246,0.18)'; this.style.color='#ffffff'; this.style.borderColor='#60a5fa';"
+                        onmouseout="this.style.background='rgba(59,130,246,0.06)'; this.style.color='#60a5fa'; this.style.borderColor='rgba(59,130,246,0.4)';">
+                        <i class="bi bi-file-earmark-check" style="font-size: 0.88rem;"></i> Save
+                    </a>
+                    <button onclick="handleProjectOp(window.pywebview.api.save_as())" class="btn fw-bold py-1 shadow-sm d-flex align-items-center justify-content-center gap-1.5" 
+                        style="width: 95px; border-radius: 8px; font-size: 0.76rem; border: 1.5px solid rgba(16,185,129,0.4) !important; color: #34d399 !important; background: rgba(16,185,129,0.06); transition: all 0.2s ease;"
+                        onmouseover="this.style.background='rgba(16,185,129,0.18)'; this.style.color='#ffffff'; this.style.borderColor='#34d399';"
+                        onmouseout="this.style.background='rgba(16,185,129,0.06)'; this.style.color='#34d399'; this.style.borderColor='rgba(16,185,129,0.4)';">
+                        <i class="bi bi-file-earmark-plus" style="font-size: 0.88rem;"></i> Save As
+                    </button>
+                    <button onclick="closeWithTransition()" class="btn fw-bold py-1 shadow-sm d-flex align-items-center justify-content-center gap-1.5" 
+                        style="width: 95px; border-radius: 8px; font-size: 0.76rem; border: 1.5px solid rgba(239,68,68,0.4) !important; color: #f87171 !important; background: rgba(239,68,68,0.06); transition: all 0.2s ease;"
+                        onmouseover="this.style.background='rgba(239,68,68,0.18)'; this.style.color='#ffffff'; this.style.borderColor='#f87171';"
+                        onmouseout="this.style.background='rgba(239,68,68,0.06)'; this.style.color='#f87171'; this.style.borderColor='rgba(239,68,68,0.4)';">
+                        <i class="bi bi-power" style="font-size: 0.88rem;"></i> Exit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard-kpi-card {
+        transition: all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        border-radius: 16px !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        min-height: 140px !important;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .dashboard-kpi-card .kpi-watermark {
+        position: absolute;
+        bottom: -20px;
+        right: -15px;
+        font-size: 5.5rem;
+        color: rgba(255, 255, 255, 0.12);
+        z-index: 1;
+        pointer-events: none;
+        transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    
+    .dashboard-kpi-card:hover .kpi-watermark {
+        transform: scale(1.25) rotate(-10deg);
+    }
+    
+    .dashboard-kpi-card::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%);
+        transform: scale(0.5);
+        transition: transform 0.5s ease;
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    .dashboard-kpi-card:hover::after {
+        transform: scale(1);
+    }
+    
+    .dashboard-kpi-card .card-body {
+        position: relative;
+        z-index: 2;
+    }
+    
+    /* Soft border-free glowing ambient hover shadows */
+    .kpi-revenue:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.5) !important;
+        border-color: rgba(59, 130, 246, 0.4) !important;
+    }
+    .kpi-profit:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 20px 40px -10px rgba(16, 185, 129, 0.5) !important;
+        border-color: rgba(16, 185, 129, 0.4) !important;
+    }
+    .kpi-outstanding:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 20px 40px -10px rgba(244, 63, 94, 0.5) !important;
+        border-color: rgba(244, 63, 94, 0.4) !important;
+    }
+    .kpi-unpaid:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 20px 40px -10px rgba(245, 158, 11, 0.5) !important;
+        border-color: rgba(245, 158, 11, 0.4) !important;
+    }
+</style>
+
+<!-- KPI Summary Background Card -->
+<div class="card p-3 border-0 mb-4 shadow-sm" style="background-color: #f8fafc; border-radius: 16px;">
+    <h6 class="fw-bold text-muted small text-uppercase mb-2" style="letter-spacing: .05em;">Performance Summary</h6>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden animate__animated animate__fadeInUp dashboard-kpi-card kpi-revenue" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); animation-delay: 0.1s;">
+                <div class="card-body p-3 py-4 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing: 0.08em; font-size: 0.72rem; white-space: nowrap;">
+                            <i class="bi bi-wallet2 me-2" style="font-size: 0.95rem;"></i>GROSS REVENUE
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-white text-opacity-50 small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">{{ currency or 'UGX' }}</span>
+                        <h2 id="card-revenue" class="fw-bold mb-0 text-white" style="font-size: clamp(1.2rem, 1.8vw, 1.8rem); letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;">
+                            {{ "{:,.0f}".format(stats.revenue) }}
+                        </h2>
+                    </div>
+                    <i class="bi bi-wallet2 kpi-watermark"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden animate__animated animate__fadeInUp dashboard-kpi-card kpi-profit" style="background: linear-gradient(135deg, #10b981 0%, #047857 100%); animation-delay: 0.2s;">
+                <div class="card-body p-3 py-4 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing: 0.08em; font-size: 0.72rem; white-space: nowrap;">
+                            <i class="bi bi-arrow-up-right-circle me-2" style="font-size: 0.95rem;"></i>EST. NET PROFIT
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-white text-opacity-50 small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">{{ currency or 'UGX' }}</span>
+                        <h2 id="card-profit" class="fw-bold mb-0 text-white" style="font-size: clamp(1.2rem, 1.8vw, 1.8rem); letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;">
+                            {{ "{:,.0f}".format(stats.profit) }}
+                        </h2>
+                    </div>
+                    <i class="bi bi-graph-up-arrow kpi-watermark"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden animate__animated animate__fadeInUp dashboard-kpi-card kpi-outstanding" style="background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%); animation-delay: 0.3s;">
+                <div class="card-body p-3 py-4 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing: 0.08em; font-size: 0.72rem; white-space: nowrap;">
+                            <i class="bi bi-clock-history me-2" style="font-size: 0.95rem;"></i>OUTSTANDING DUE
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-white text-opacity-50 small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">{{ currency or 'UGX' }}</span>
+                        <h2 id="card-unpaid" class="fw-bold mb-0 text-white" style="font-size: clamp(1.2rem, 1.8vw, 1.8rem); letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;">
+                            {{ "{:,.0f}".format(stats.unpaid) }}
+                        </h2>
+                    </div>
+                    <i class="bi bi-clock-history kpi-watermark"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 overflow-hidden animate__animated animate__fadeInUp dashboard-kpi-card kpi-unpaid" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); animation-delay: 0.4s;">
+                <div class="card-body p-3 py-4 d-flex flex-column justify-content-between">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing: 0.08em; font-size: 0.72rem; white-space: nowrap;">
+                            <i class="bi bi-exclamation-square me-2" style="font-size: 0.95rem;"></i>UNPAID CONTRACTS
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-white text-opacity-50 small fw-bold text-uppercase d-block mb-1" style="font-size: 0.68rem; letter-spacing: 0.08em;">VOLUME</span>
+                        <h2 id="card-count" class="fw-bold mb-0 text-white" style="font-size: clamp(1.2rem, 1.8vw, 1.8rem); letter-spacing: -0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;">
+                            {{ stats.count }} <span style="font-size: 0.85rem; font-weight: 500; opacity: 0.75;">contracts</span>
+                        </h2>
+                    </div>
+                    <i class="bi bi-exclamation-square kpi-watermark"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Row 1: Main Financial Trends -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card p-4 border-0 shadow-sm bg-white h-100" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-graph-up text-primary me-2"></i>Revenue & Profit
+                Trends (Recent 12 Months)</h5>
+            <div id="revenueChartContainer" style="height: 350px;"></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-4 border-0 shadow-sm bg-white h-100" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-calendar-check text-info me-2"></i>Sales Volume
+                Count</h5>
+            <div style="height: 350px;"><canvas id="countChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 1.5: Monthly Profit Margin % -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-12">
+        <div class="card p-4 border-0 shadow-sm bg-white h-100" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-percent text-success me-2"></i>Monthly Profit Margin %
+                <span class="text-muted fw-normal ms-2" style="font-size: 0.78rem;">Efficiency trend over recent 12 months</span></h5>
+            <div id="marginChartContainer" style="height: 320px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 1.6: Year-over-Year Comparison -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-12">
+        <div class="card p-4 border-0 shadow-sm bg-white h-100" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-calendar-range text-primary me-2"></i>Year-over-Year Revenue Comparison
+                <span class="text-muted fw-normal ms-2" style="font-size: 0.78rem;">Comparing current period vs prior period (rolling 12 months)</span></h5>
+            <div id="yoyChartContainer" style="height: 320px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: Regional Performance -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-12">
+        <div class="card p-4 border-0 shadow-sm bg-white h-100" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-geo-alt text-danger me-2"></i>Area Performance
+                (Revenue vs Count)</h5>
+            <div style="height: 350px;"><canvas id="areaCombinedChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Distribution Breakdowns -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card p-4 border-0 shadow-sm h-100 bg-white" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-bar-chart-steps text-warning me-2"></i>Payment
+                Status</h5>
+            <div style="height: 260px;"><canvas id="statusChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-4 border-0 shadow-sm h-100 bg-white" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-diagram-3 text-info me-2"></i>Contract Types
+            </h5>
+            <div style="height: 260px;"><canvas id="typeChart"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-4 border-0 shadow-sm h-100 bg-white" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-building text-secondary me-2"></i>Gov vs Private
+            </h5>
+            <div style="height: 260px;"><canvas id="govChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 4: Top Clients -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-12">
+        <div class="card p-4 border-0 shadow-sm bg-white" style="border-radius: 20px;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2"><i class="bi bi-trophy text-warning me-2"></i>Top Clients by
+                Revenue</h5>
+            <div style="height: 300px;"><canvas id="clientChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/apexcharts.min.js') }}"></script>
+<script>
+    document.getElementById('dashDate').innerText = new Date().toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = "#64748b";
+    const appCurrency = window.APP_CURRENCY || "{{ currency or 'UGX' }}";
+    const fmtUGX = v => appCurrency + ' ' + Number(v).toLocaleString();
+
+    // 1. Revenue & Profit Trend (Upgraded to ApexCharts)
+    const apexOptions = {
+        chart: {
+            type: 'area',
+            height: 350,
+            fontFamily: "'Inter', sans-serif",
+            zoom: {
+                enabled: false
+            },
+            toolbar: { 
+                show: true,
+                tools: {
+                    download: false,
+                    selection: false,
+                    zoom: false,
+                    zoomin: false,
+                    zoomout: false,
+                    pan: false,
+                    reset: false,
+                    customIcons: [{
+                        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+                        index: 0,
+                        title: 'Save Image As...',
+                        class: 'custom-icon',
+                        click: function (chart, options, e) {
+                            chart.dataURI().then(({ imgURI }) => {
+                                if (window.pywebview && window.pywebview.api) {
+                                    window.pywebview.api.save_base64_image(imgURI, 'Revenue_Trends.png');
+                                } else {
+                                    const a = document.createElement("a");
+                                    a.href = imgURI;
+                                    a.download = "Revenue_Trends.png";
+                                    a.click();
+                                }
+                            });
+                        }
+                    }]
+                }
+            },
+            animations: { 
+                enabled: true, 
+                easing: 'easeinout', 
+                speed: 300, 
+                animateGradually: { enabled: false },
+                dynamicAnimation: { speed: 300 } 
+            }
+        },
+        series: [
+            { name: 'Revenue', data: {{ chart_data | tojson }} },
+            { name: 'Profit', data: {{ profit_data | tojson }} }
+        ],
+        xaxis: { categories: {{ chart_labels | tojson }}, tooltip: { enabled: false } },
+        yaxis: { labels: { formatter: (v) => appCurrency + ' ' + (v / 1000000).toFixed(1) + 'M' } },
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: [3, 2], dashArray: [0, 5] },
+        colors: ['#0d6efd', '#198754'],
+        fill: { type: ['gradient', 'solid'], gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 90, 100] } },
+        tooltip: { y: { formatter: function (val) { return fmtUGX(val) } } }
+    };
+    window.revChart = new ApexCharts(document.querySelector("#revenueChartContainer"), apexOptions);
+    window.revChart.render();
+
+    // 2. Sales Volume Count
+    window.countChart = new Chart(document.getElementById('countChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ chart_labels | tojson }},
+    datasets: [{ label: 'Sales Count', data: {{ monthly_counts | tojson }}, backgroundColor: '#0dcaf0', borderRadius: 8 }]
+        },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } } }
+    });
+
+    // 3. Consolidated Area Chart
+    window.areaChart = new Chart(document.getElementById('areaCombinedChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ area_labels | tojson }},
+    datasets: [
+        { label: 'Revenue (' + appCurrency + ')', data: {{ area_rev | tojson }}, backgroundColor: 'rgba(13,110,253,0.7)', borderRadius: 5, yAxisID: 'y' },
+        { label: 'Sales Count', data: {{ area_data | tojson }}, type: 'line', borderColor: '#dc3545', backgroundColor: '#dc3545', borderWidth: 2, pointRadius: 4, tension: 0.3, yAxisID: 'y1' }
+    ]
+        },
+    options: {
+        responsive: true,
+            maintainAspectRatio: false,
+                plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.datasetIndex === 0 ? fmtUGX(ctx.parsed.y) : ctx.parsed.y) } } },
+        scales: {
+            y: { type: 'linear', position: 'left', beginAtZero: true, ticks: { callback: v => v / 1000000 + 'M' }, grid: { color: 'rgba(0,0,0,0.04)' } },
+            y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { display: false }, title: { display: true, text: 'Sales Count' } },
+            x: { grid: { display: false } }
+        }
+    }
+    });
+
+
+    // 5. Payment Status
+    window.statusChart = new Chart(document.getElementById('statusChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ status_labels | tojson }},
+    datasets: [
+        { label: 'Count', data: {{ status_data | tojson }}, backgroundColor: function (ctx) { const l = ctx.chart.data.labels[ctx.dataIndex]; return l === 'PAID' ? 'rgba(25,135,84,0.8)' : l === 'BAD DEBT' ? 'rgba(220,53,69,0.8)' : 'rgba(255,193,7,0.85)'; }, borderRadius: 5 }
+    ]
+        },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } }, x: { grid: { display: false } } } }
+    });
+
+    // 6. Contract Type
+    window.typeChart = new Chart(document.getElementById('typeChart'), {
+        type: 'pie',
+        data: { labels: {{ type_labels | tojson }}, datasets: [{ data: {{ type_data | tojson }}, backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#6f42c1'], borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // 7. Gov vs Private
+    window.govChart = new Chart(document.getElementById('govChart'), {
+        type: 'doughnut',
+        data: { labels: {{ gov_labels | tojson }}, datasets: [{ data: {{ gov_data | tojson }}, backgroundColor: ['#0dcaf0', '#6f42c1'], borderWidth: 0, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
+    });
+
+    // 8. Top Clients
+    window.clientChart = new Chart(document.getElementById('clientChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ client_labels | tojson }},
+    datasets: [{ label: 'Revenue (' + appCurrency + ')', data: {{ client_data | tojson }}, backgroundColor: 'rgba(13,110,253,0.75)', borderRadius: 5 }]
+        },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtUGX(ctx.parsed.x) } } }, scales: { x: { beginAtZero: true, ticks: { callback: v => v / 1000000 + 'M' }, grid: { color: 'rgba(0,0,0,0.04)' } }, y: { grid: { display: false } } } }
+    });
+
+    // 9. Monthly Profit Margin %
+    const revenueArr = {{ chart_data | tojson }};
+    const profitArr = {{ profit_data | tojson }};
+    const marginData = revenueArr.map((rev, i) => {
+        if (!rev || rev === 0) return 0;
+        return parseFloat(((profitArr[i] / rev) * 100).toFixed(1));
+    });
+    const avgMargin = marginData.length ? parseFloat((marginData.reduce((a,b) => a+b, 0) / marginData.length).toFixed(1)) : 0;
+
+    window.marginChart = new ApexCharts(document.querySelector('#marginChartContainer'), {
+        chart: {
+            type: 'area',
+            height: 320,
+            fontFamily: "'Inter', sans-serif",
+            zoom: { enabled: false },
+            toolbar: {
+                show: true,
+                tools: {
+                    download: false, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false,
+                    customIcons: [{
+                        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+                        index: 0, title: 'Save Image As...', class: 'custom-icon',
+                        click: function(chart) {
+                            chart.dataURI().then(({ imgURI }) => {
+                                if (window.pywebview && window.pywebview.api) {
+                                    window.pywebview.api.save_base64_image(imgURI, 'Profit_Margin_Trend.png');
+                                } else {
+                                    const a = document.createElement('a'); a.href = imgURI; a.download = 'Profit_Margin_Trend.png'; a.click();
+                                }
+                            });
+                        }
+                    }]
+                }
+            },
+            animations: { enabled: true, easing: 'easeinout', speed: 300, animateGradually: { enabled: false }, dynamicAnimation: { speed: 300 } }
+        },
+        series: [{ name: 'Profit Margin', data: marginData }],
+        xaxis: { categories: {{ chart_labels | tojson }}, tooltip: { enabled: false } },
+        yaxis: {
+            labels: { formatter: v => v.toFixed(1) + '%' },
+            min: function(min) { return Math.min(0, Math.floor(min - 5)); },
+            forceNiceScale: true
+        },
+        dataLabels: {
+            enabled: true,
+            formatter: v => v.toFixed(1) + '%',
+            style: { fontSize: '11px', fontWeight: 700, colors: ['#047857'] },
+            background: { enabled: false },
+            offsetY: -8
+        },
+        stroke: { curve: 'smooth', width: 3 },
+        colors: ['#10b981'],
+        fill: {
+            type: 'gradient',
+            gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100] }
+        },
+        markers: { size: 5, colors: ['#10b981'], strokeColors: '#fff', strokeWidth: 2, hover: { sizeOffset: 3 } },
+        tooltip: { y: { formatter: v => v.toFixed(1) + '%' } },
+        annotations: {
+            yaxis: [{
+                y: avgMargin,
+                borderColor: '#f59e0b',
+                strokeDashArray: 6,
+                label: {
+                    borderColor: '#f59e0b',
+                    style: { color: '#fff', background: '#f59e0b', fontSize: '11px', fontWeight: 700, padding: { left: 8, right: 8, top: 4, bottom: 4 } },
+                    text: 'Avg: ' + avgMargin + '%',
+                    position: 'right'
+                }
+            }]
+        }
+    });
+    window.marginChart.render();
+
+    // 10. Year-over-Year Comparison Chart
+    window.yoyChart = new ApexCharts(document.querySelector('#yoyChartContainer'), {
+        chart: {
+            type: 'bar',
+            height: 320,
+            fontFamily: "'Inter', sans-serif",
+            zoom: { enabled: false },
+            toolbar: {
+                show: true,
+                tools: {
+                    download: false, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false,
+                    customIcons: [{
+                        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+                        index: 0, title: 'Save Image As...', class: 'custom-icon',
+                        click: function(chart) {
+                            chart.dataURI().then(({ imgURI }) => {
+                                if (window.pywebview && window.pywebview.api) {
+                                    window.pywebview.api.save_base64_image(imgURI, 'YoY_Revenue_Comparison.png');
+                                } else {
+                                    const a = document.createElement('a'); a.href = imgURI; a.download = 'YoY_Revenue_Comparison.png'; a.click();
+                                }
+                            });
+                        }
+                    }]
+                }
+            },
+            animations: { enabled: true, easing: 'easeinout', speed: 300, animateGradually: { enabled: false }, dynamicAnimation: { speed: 300 } }
+        },
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                columnWidth: '45%',
+                borderRadius: 6
+            },
+        },
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            show: true,
+            width: 2,
+            colors: ['transparent']
+        },
+        series: [
+            { name: 'Current Period (' + {{ yoy_current_label | tojson }} + ')', data: {{ yoy_current | tojson }} },
+            { name: 'Prior Period (' + {{ yoy_prior_label | tojson }} + ')', data: {{ yoy_prior | tojson }} }
+        ],
+        xaxis: {
+            categories: {{ yoy_labels | tojson }},
+            tooltip: { enabled: false }
+        },
+        yaxis: {
+            labels: { formatter: (v) => appCurrency + ' ' + (v / 1000000).toFixed(1) + 'M' }
+        },
+        colors: ['#0d6efd', '#94a3b8'],
+        tooltip: {
+            y: { formatter: function (val) { return fmtUGX(val) } }
+        }
+    });
+    window.yoyChart.render();
+
+    const addHoverAnim = (id, chartInstance) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.parentElement.addEventListener('mouseenter', () => {
+                if (chartInstance && !chartInstance.$animating) {
+                    chartInstance.$animating = true;
+                    chartInstance.reset();
+                    chartInstance.update();
+                    setTimeout(() => { chartInstance.$animating = false; }, 1000);
+                }
+            });
+        }
+    };
+
+    [window.revChart, window.countChart, window.areaChart, window.statusChart, window.typeChart, window.govChart, window.clientChart, window.marginChart, window.yoyChart].forEach((c, i) => {
+        const ids = ['revenueChart', 'countChart', 'areaCombinedChart', 'statusChart', 'typeChart', 'govChart', 'clientChart', 'marginChartContainer', 'yoyChartContainer'];
+        addHoverAnim(ids[i], c);
+    });
+
+    // Globally exposed real-time updater
+    window.updateDashboard = function() {
+        fetch('/api/dashboard_stats')
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) return;
+                
+                // Update KPI Cards
+                const cardRevenue = document.getElementById('card-revenue');
+                const cardProfit = document.getElementById('card-profit');
+                const cardUnpaid = document.getElementById('card-unpaid');
+                const cardCount = document.getElementById('card-count');
+                
+                const fmt = v => Math.round(v).toLocaleString('en-US');
+                
+                if (cardRevenue) cardRevenue.innerText = fmt(data.stats.revenue);
+                if (cardProfit) cardProfit.innerText = fmt(data.stats.profit);
+                if (cardUnpaid) cardUnpaid.innerText = fmt(data.stats.unpaid);
+                if (cardCount) cardCount.innerHTML = `${data.stats.count} <span style="font-size: 0.95rem; font-weight: 500; opacity: 0.75;">contracts</span>`;
+                
+                // Update Chart.js Charts and ApexCharts
+                if (window.revChart) {
+                    window.revChart.updateSeries([
+                        { name: 'Revenue', data: data.chart_data },
+                        { name: 'Profit', data: data.profit_data }
+                    ]);
+                    window.revChart.updateOptions({ xaxis: { categories: data.chart_labels } });
+                }
+                if (window.countChart) {
+                    window.countChart.data.labels = data.chart_labels;
+                    window.countChart.data.datasets[0].data = data.monthly_counts;
+                    window.countChart.update();
+                }
+                if (window.areaChart) {
+                    window.areaChart.data.labels = data.area_labels;
+                    window.areaChart.data.datasets[0].data = data.area_rev;
+                    window.areaChart.data.datasets[1].data = data.area_data;
+                    window.areaChart.update();
+                }
+                if (window.statusChart) {
+                    window.statusChart.data.labels = data.status_labels;
+                    window.statusChart.data.datasets[0].data = data.status_data;
+                    window.statusChart.update();
+                }
+                if (window.typeChart) {
+                    window.typeChart.data.labels = data.type_labels;
+                    window.typeChart.data.datasets[0].data = data.type_data;
+                    window.typeChart.update();
+                }
+                if (window.govChart) {
+                    window.govChart.data.labels = data.gov_labels;
+                    window.govChart.data.datasets[0].data = data.gov_data;
+                    window.govChart.update();
+                }
+                if (window.clientChart) {
+                    window.clientChart.data.labels = data.client_labels;
+                    window.clientChart.data.datasets[0].data = data.client_data;
+                    window.clientChart.update();
+                }
+                if (window.marginChart) {
+                    const newMargin = data.chart_data.map((rev, i) => {
+                        if (!rev || rev === 0) return 0;
+                        return parseFloat(((data.profit_data[i] / rev) * 100).toFixed(1));
+                    });
+                    const newAvg = newMargin.length ? parseFloat((newMargin.reduce((a,b) => a+b, 0) / newMargin.length).toFixed(1)) : 0;
+                    window.marginChart.updateSeries([{ name: 'Profit Margin', data: newMargin }]);
+                    window.marginChart.updateOptions({
+                        xaxis: { categories: data.chart_labels },
+                        annotations: { yaxis: [{ y: newAvg, borderColor: '#f59e0b', strokeDashArray: 6, label: { borderColor: '#f59e0b', style: { color: '#fff', background: '#f59e0b', fontSize: '11px', fontWeight: 700, padding: { left: 8, right: 8, top: 4, bottom: 4 } }, text: 'Avg: ' + newAvg + '%', position: 'right' } }] }
+                    });
+                }
+                if (window.yoyChart) {
+                    window.yoyChart.updateSeries([
+                        { name: 'Current Period (' + data.yoy_current_label + ')', data: data.yoy_current },
+                        { name: 'Prior Period (' + data.yoy_prior_label + ')', data: data.yoy_prior }
+                    ]);
+                    window.yoyChart.updateOptions({
+                        xaxis: { categories: data.yoy_labels }
+                    });
+                }
+            })
+            .catch(err => console.error("Error updating dashboard stats:", err));
+    };
+
+</script>
+{% endblock %}

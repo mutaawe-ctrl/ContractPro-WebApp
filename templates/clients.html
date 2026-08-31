@@ -1,0 +1,181 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Client Directory</h2>
+        <p class="text-muted mb-0">Manage your registered clients, TIN numbers, and addresses.</p>
+    </div>
+    {% if session.get('is_admin') %}
+    <button class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#addClientModal">
+        <i class="bi bi-plus-circle me-2"></i> Add Client
+    </button>
+    {% endif %}
+</div>
+
+{% set bg_accents = ['rgba(59, 130, 246, 0.12)', 'rgba(16, 185, 129, 0.12)', 'rgba(245, 158, 11, 0.12)', 'rgba(139, 92, 246, 0.12)', 'rgba(244, 63, 94, 0.12)', 'rgba(71, 85, 105, 0.12)'] %}
+{% set text_accents = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#e11d48', '#475569'] %}
+
+<div class="row g-4">
+    {% for c in clients %}
+    {% set color_idx = loop.index0 % 6 %}
+    <div class="col-md-4">
+        <div class="card h-100 hover-card shadow-sm animate__animated animate__fadeInUp" 
+             style="animation-delay: {{ loop.index0 * 0.05 }}s; border: none !important; background: {{ bg_accents[color_idx] }} !important; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 24px;">
+            <div class="card-body text-center p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <span class="badge bg-white shadow-sm fw-bold" style="font-size: 0.7rem; padding: 6px 12px; color: {{ text_accents[color_idx] }}; border-radius: 8px;">{{ c.code }}</span>
+                        {% if session.get('is_admin') %}
+                        <div class="dropdown">
+                            <button class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="border-radius: 12px;">
+                                <li>
+                                    <a class="dropdown-item small fw-bold edit-client-btn" 
+                                       href="javascript:void(0)" 
+                                       data-id="{{ c.id }}"
+                                       data-name="{{ c.name }}"
+                                       data-tin="{{ c.tin or '' }}"
+                                       data-address="{{ c.address or '' }}">
+                                       <i class="bi bi-pencil me-2" style="color: {{ text_accents[color_idx] }};"></i> Edit Details
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <h5 class="fw-bold mb-2 text-dark" title="{{ c.name }}" style="font-size: 1.4rem; line-height: 1.2; letter-spacing: -0.02em;">{{ c.name }}</h5>
+                    <p class="small fw-medium mb-4" style="color: rgba(30, 41, 59, 0.7); min-height: 2.4em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        <i class="bi bi-geo-alt-fill me-1" style="color: {{ text_accents[color_idx] }};"></i> {{ c.address or 'No address provided' }}
+                    </p>
+                </div>
+                <div class="d-grid gap-2">
+                    <button onclick="showClientSnapshot({{ c.id }})" class="btn bg-white fw-bold py-2 shadow-sm border-0" style="color: {{ text_accents[color_idx] }}; border-radius: 12px;">
+                        <i class="bi bi-graph-up me-2"></i> Snapshot
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Modal for selecting supply areas -->
+<div class="modal fade" id="selectAreasModal" tabindex="-1" aria-labelledby="selectAreasModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark" id="selectAreasModalLabel">
+                    <i class="bi bi-geo-fill text-primary me-2"></i> Select Supply Areas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">Choose the specific supply areas you want to include in this Demand Note.</p>
+                
+                <!-- Select All Option -->
+                <div class="form-check p-3 mb-2 rounded bg-light border border-2 border-primary border-opacity-10 d-flex align-items-center">
+                    <input class="form-check-input ms-0 me-3" type="checkbox" id="selectAllAreas" checked style="width: 1.25em; height: 1.25em;">
+                    <label class="form-check-label fw-bold text-primary mb-0 cursor-pointer" for="selectAllAreas" style="cursor: pointer; user-select: none;">
+                        Select All Areas
+                    </label>
+                </div>
+                
+                <!-- Checkbox list of areas -->
+                <div id="areaCheckboxesContainer" class="mt-3" style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                    <!-- Dynamically populated checkboxes -->
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-light fw-bold" data-bs-dismiss="modal" style="border-radius: 12px; padding: 10px 20px;">Cancel</button>
+                <button type="button" id="confirmPrintDemandNoteBtn" class="btn btn-primary fw-bold px-4" style="border-radius: 12px; padding: 10px 24px;">
+                    <i class="bi bi-printer me-2"></i> Print Demand Note
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentDemandNoteClientId = null;
+
+    function handleDemandNoteClick(clientId, clientName) {
+        // Fetch distinct unpaid areas for this client
+        fetch(`/api/client_unpaid_areas/${clientId}`)
+            .then(res => res.json())
+            .then(areas => {
+                if (!areas || areas.length === 0) {
+                    showToast(`There are no unpaid contracts for ${clientName}.`, 'warning');
+                    return;
+                }
+                
+                // If there's only ONE area, generate the report automatically
+                if (areas.length === 1) {
+                    const areaId = areas[0].id;
+                    openReport(`/print_client_statement/${clientId}?areas=${areaId}`);
+                    return;
+                }
+                
+                // Otherwise, show the selection modal
+                currentDemandNoteClientId = clientId;
+                const container = document.getElementById('areaCheckboxesContainer');
+                container.innerHTML = '';
+                
+                areas.forEach(area => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check p-2 mb-2 rounded border border-light bg-white shadow-sm d-flex align-items-center';
+                    div.innerHTML = `
+                        <input class="form-check-input ms-0 me-3 area-select-cb" type="checkbox" value="${area.id}" id="area_cb_${area.id}" checked style="width: 1.15em; height: 1.15em;">
+                        <label class="form-check-label fw-semibold text-dark mb-0 cursor-pointer" for="area_cb_${area.id}" style="cursor: pointer; user-select: none; flex-grow: 1;">
+                            ${area.name}
+                        </label>
+                    `;
+                    container.appendChild(div);
+                });
+                
+                // Reset select all checkbox to checked
+                const selectAllCB = document.getElementById('selectAllAreas');
+                selectAllCB.checked = true;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('selectAreasModal'));
+                modal.show();
+            })
+            .catch(err => {
+                console.error('Error fetching client areas:', err);
+                showToast('Failed to check client demand note areas.');
+            });
+    }
+
+    // Set up select all checkbox toggler
+    document.getElementById('selectAllAreas').addEventListener('change', function(e) {
+        const checked = e.target.checked;
+        document.querySelectorAll('.area-select-cb').forEach(cb => {
+            cb.checked = checked;
+        });
+    });
+
+    // Confirm print action button
+    document.getElementById('confirmPrintDemandNoteBtn').addEventListener('click', function() {
+        if (!currentDemandNoteClientId) return;
+        
+        const selectedCBs = document.querySelectorAll('.area-select-cb:checked');
+        if (selectedCBs.length === 0) {
+            alert('Please select at least one supply area to print.');
+            return;
+        }
+        
+        const selectedIds = Array.from(selectedCBs).map(cb => cb.value).join(',');
+        
+        // Hide modal
+        const modalEl = document.getElementById('selectAreasModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+        
+        // Open report
+        openReport(`/print_client_statement/${currentDemandNoteClientId}?areas=${selectedIds}`);
+    });
+</script>
+{% endblock %}

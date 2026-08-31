@@ -1,0 +1,342 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1 text-dark">Sales Management Suite</h2>
+        <p class="text-muted mb-0">High-performance transactional auditing and financial intelligence.</p>
+    </div>
+    <div class="d-flex gap-3">
+        <div class="text-end">
+            <small class="text-muted fw-bold d-block">TOTAL REVENUE</small>
+            <h4 class="fw-bold mb-0 text-primary">{{ currency or 'UGX' }} {{ "{:,.0f}".format(demands|map(attribute='total')|map('default', 0)|sum) }}</h4>
+        </div>
+        <div class="vr"></div>
+        <div class="text-end">
+            <small class="text-muted fw-bold d-block">EST. NET PROFIT</small>
+            <h4 class="fw-bold mb-0 text-success">{{ currency or 'UGX' }} {{ "{:,.0f}".format(demands|map(attribute='profit')|map('default', 0)|sum) }}</h4>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- System Notifications Area -->
+    <div class="col-md-12">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert {% if 'Error' in message or 'failed' in message %}alert-danger{% else %}alert-success{% endif %} border-0 shadow-sm animate__animated animate__fadeInDown">
+                <div class="d-flex align-items-center">
+                    <i class="bi {% if 'Error' in message or 'failed' in message %}bi-exclamation-triangle-fill{% else %}bi-check-circle-fill{% endif %} me-3 fs-4"></i>
+                    <div>
+                        <h6 class="fw-bold mb-0">System Notification</h6>
+                        <small>{{ message }}</small>
+                    </div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <div id="importStatus" class="d-none">
+            <div class="alert alert-info border-0 shadow-sm animate__animated animate__pulse animate__infinite">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+                    <div>
+                        <h6 class="fw-bold mb-0">Processing Fast-Load...</h6>
+                        <small>Please wait while your Excel records are being synchronized.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Search & Filter Card -->
+    <div class="col-md-12">
+        <div class="card p-4 border-0 shadow-sm bg-white" style="border: 1px solid #e2e8f0 !important;">
+            <h5 class="fw-bold mb-4 border-bottom pb-2">1. Registry Intelligence Filters</h5>
+            <form method="GET" action="{{ url_for('demands') }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Client</label>
+                        <select name="client_id" class="form-select border-0 bg-light">
+                            <option value="">All Clients</option>
+                            {% for c in clients %}<option value="{{ c.id }}" {% if request.args.get('client_id')|int == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Area</label>
+                        <select name="area_id" class="form-select border-0 bg-light">
+                            <option value="">All Areas</option>
+                            {% for a in areas %}<option value="{{ a.id }}" {% if request.args.get('area_id')|int == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Payment Status</label>
+                        <select name="status" class="form-select border-0 bg-light">
+                            <option value="">All Statuses</option>
+                            <option value="PAID" {% if request.args.get('status') == 'PAID' %}selected{% endif %}>PAID</option>
+                            <option value="NOT PAID" {% if request.args.get('status') == 'NOT PAID' %}selected{% endif %}>NOT PAID</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary fw-bold w-100 shadow-sm">Refresh Registry</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+    <!-- 2. Master Transactional Registry Search Card -->
+    <div class="col-md-12">
+        <div class="card p-3 border-0 shadow-sm mb-3" style="background: #f8fafc; border-radius: 16px !important;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="input-group shadow-sm" style="width: 480px; border: 2.5px solid #2563eb !important; border-radius: 10px; overflow: hidden; background: white;">
+                        <span class="input-group-text bg-white border-0 ps-3 py-1.5 text-primary"><i class="bi bi-search" style="font-size: 0.95rem;"></i></span>
+                        <input type="text" id="registrySearch" class="form-control border-0 bg-white py-1.5 text-dark" placeholder="Quick search records..." style="font-weight: 600; font-size: 0.95rem; box-shadow: none !important;">
+                        <button type="button" id="clearSearchBtn" class="btn bg-white border-0 text-muted d-none pe-3 py-1.5" style="box-shadow: none !important; z-index: 100;"><i class="bi bi-x-circle-fill" style="font-size: 1.05rem;"></i></button>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <!-- Import Button -->
+                    <button type="button" onclick="document.getElementById('excelFileInput').click()" class="btn btn-outline-primary fw-bold px-4 py-2 shadow-sm" style="border-radius: 10px; border-width: 2.5px; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; padding: 10px 22px;">
+                        <i class="bi bi-file-earmark-arrow-up" style="font-size: 1.05rem;"></i>Import Excel
+                    </button>
+                    <!-- Export Button -->
+                    <button type="button" onclick="exportTableToExcel()" class="btn fw-bold px-4 py-2 shadow-sm" style="background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.88rem; display: flex; align-items: center; gap: 6px; font-weight: 700; padding: 10px 22px;">
+                        <i class="bi bi-file-earmark-excel" style="font-size: 1.05rem;"></i>Export Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dynamic Search Matching Feedback Banner -->
+    <div class="col-md-12">
+        <div id="searchFeedbackArea" class="d-none p-3 mb-3 border bg-light bg-opacity-25 rounded-3 text-muted small fw-semibold animate__animated animate__fadeIn" style="border-color: #e2e8f0 !important; border-radius: 10px !important;">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-funnel-fill text-primary" style="font-size: 1.05rem;"></i>
+                <span style="font-size: 0.9rem; color: #334155;">Showing search results matching: <span class="text-primary fw-bold border-bottom border-primary border-2 pb-0.5" id="searchFeedbackTerm">""</span></span>
+                <span class="ms-auto badge bg-primary text-white rounded-pill px-3 py-1.5 fw-bold" id="searchFeedbackCount" style="font-size: 0.78rem;">0 records found</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. The Master Table Registry Wrapper -->
+    <div class="col-md-12 mb-5 pb-4">
+        <div class="registry-container shadow-lg rounded-4 overflow-hidden bg-white border">
+            <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow-y: auto;">
+                <table class="table modern-table align-middle mb-0" id="masterRegistry">
+                    <thead class="table-light sticky-top shadow-sm" style="z-index: 50;">
+                        <tr class="fw-bold text-muted text-uppercase" style="white-space: nowrap;">
+                            <th class="ps-4 py-3">Entry ID</th>
+                            <th class="py-3">Tax Invoice No.</th>
+                            <th class="py-3">Contract No.</th>
+                            <th class="py-3">Delivery Note No.</th>
+                            <th class="py-3">Client Name</th>
+                            <th class="py-3">Supply Area</th>
+                            <th class="py-3">Supplying Company</th>
+                            <th class="py-3">Contract Type</th>
+                            <th class="py-3">Ownership Status</th>
+                            <th class="py-3">Government?</th>
+                            <th class="py-3">VAT Rated?</th>
+                            <th class="py-3">Payment Status</th>
+                            <th class="py-3">Payment Date</th>
+                            <th class="py-3">URA Status</th>
+                            <th class="py-3">Tax Period</th>
+                            <th class="py-3">Contract Details</th>
+                            <th class="py-3">Completion Date</th>
+                            <th class="py-3 text-end">Contract Amount</th>
+                            <th class="py-3 text-end pe-4">Investment Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white border-top-0">
+                        {% for s in demands %}
+                        <tr class="registry-row staggered-row" onclick="handleRowInteraction({{ s.id }})" style="--row-index: {{ loop.index0 }}; cursor: pointer; transition: background 0.15s ease; white-space: nowrap;">
+                            <td class="ps-4 fw-bold text-primary">{{ s.entry_id }}</td>
+                            <td class="fw-bold text-dark">{{ s.invoice_code|no_decimal }}</td>
+                            <td class="text-muted">{{ s.contract_no }}</td>
+                            <td class="text-muted">{{ s.po_no|no_decimal }}</td>
+                            <td class="fw-bold text-slate-800">{{ s.client_name }}</td>
+                            <td><span class="badge bg-secondary bg-opacity-10 text-secondary px-2.5 py-1.5" style="font-size: 0.82rem;">{{ s.area_name }}</span></td>
+                            <td class="text-muted">{{ s.company_name }}</td>
+                            <td class="text-muted">{{ s.contract_type }}</td>
+                            <td class="text-muted">{{ s.ownership_status }}</td>
+                            <td>{{ 'Yes' if s.is_gov else 'No' }}</td>
+                            <td>{{ 'Yes' if s.is_vat_rated else 'No' }}</td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill px-3 py-2 fw-bold {% if s.payment_status == 'PAID' %}status-badge-paid{% elif s.payment_status in ['BAD DEBT', 'CANCELLED'] %}status-badge-baddebt{% else %}status-badge-pending{% endif %}" 
+                                      style="font-size: 0.8rem;">
+                                    {{ s.payment_status }}
+                                </span>
+                            </td>
+                            <td class="text-muted">{{ s.payment_date or '-' }}</td>
+                            <td><span class="ura-pill text-white {% if s.ura_status == 'PAID' %}bg-success{% elif s.ura_status == 'UNPAID' %}bg-danger{% elif s.ura_status == 'OFFSET' %}bg-primary{% else %}bg-secondary{% endif %}">{{ s.ura_status }}</span></td>
+                            <td class="text-muted fw-bold" style="font-size: 0.82rem;">{{ s.tax_period or '' }}</td>
+                            <td><div class="text-truncate" style="max-width: 180px; font-size: 0.88rem;" title="{{ s.contract_details }}">{{ s.contract_details }}</div></td>
+                            <td class="fw-bold">{{ s.completion_date }}</td>
+                            <td class="text-end fw-black text-dark">{{ currency or 'UGX' }} {{ "{:,.0f}".format(s.total or 0) }}</td>
+                            <td class="text-end text-muted pe-4">{{ "{:,.0f}".format(s.investment_amount or 0) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .fw-black { font-weight: 800; }
+        .text-silver { color: #cbd5e1; }
+        
+        /* Local modern table adjustments */
+        #masterRegistry { font-size: 0.95rem !important; }
+        /* Custom Scrollbar for modern look */
+        .table-responsive::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-responsive::-webkit-scrollbar-track { background: #f1f5f9; }
+        .table-responsive::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .table-responsive::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+
+<form id="excelImportForm" action="/api/import_excel" method="POST" enctype="multipart/form-data" class="d-none">
+    <input type="file" name="file" id="excelFileInput" onchange="showLoadingAndSubmit()">
+</form>
+
+<script>
+    function showLoadingAndSubmit() {
+        const input = document.getElementById('excelFileInput');
+        if (input.files && input.files.length > 0) {
+            document.getElementById('importStatus').classList.remove('d-none');
+            document.getElementById('excelImportForm').submit();
+        }
+    }
+
+    let lastTap = 0;
+    let lastRowId = null;
+    function handleRowInteraction(id) {
+        const now = new Date().getTime();
+        const timesince = now - lastTap;
+        if ((timesince < 500) && (timesince > 0) && (lastRowId === id)) {
+            editInPopup(id);
+        }
+        lastTap = now;
+        lastRowId = id;
+    }
+
+    const searchInput = document.getElementById('registrySearch');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const feedbackArea = document.getElementById('searchFeedbackArea');
+    const feedbackTerm = document.getElementById('searchFeedbackTerm');
+    const feedbackCount = document.getElementById('searchFeedbackCount');
+
+    if (searchInput && clearBtn) {
+        searchInput.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            
+            if (q.length > 0) {
+                clearBtn.classList.remove('d-none');
+                feedbackArea.classList.remove('d-none');
+                feedbackTerm.innerText = `"${this.value.trim()}"`;
+            } else {
+                clearBtn.classList.add('d-none');
+                feedbackArea.classList.add('d-none');
+            }
+            
+            let matchCount = 0;
+            document.querySelectorAll('.registry-row').forEach(row => {
+                let hasMatch = false;
+                const cells = row.querySelectorAll('td');
+                
+                cells.forEach(cell => {
+                    if (!cell.getAttribute('data-orig-html')) {
+                        cell.setAttribute('data-orig-html', cell.innerHTML);
+                    }
+                    
+                    const origHTML = cell.getAttribute('data-orig-html');
+                    
+                    if (q === '') {
+                        cell.innerHTML = origHTML;
+                    } else {
+                        const origText = cell.textContent;
+                        const index = origText.toLowerCase().indexOf(q);
+                        
+                        if (index !== -1) {
+                            hasMatch = true;
+                            if (!cell.querySelector('a') && !cell.querySelector('span.badge') && !cell.querySelector('div.text-truncate')) {
+                                const regex = new RegExp(`(${q.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+                                cell.innerHTML = origText.replace(regex, '<mark class="p-0 bg-warning text-dark">$1</mark>');
+                            } else if (cell.querySelector('div.text-truncate')) {
+                                const div = cell.querySelector('div.text-truncate');
+                                if (!div.getAttribute('data-orig-html')) {
+                                    div.setAttribute('data-orig-html', div.innerHTML);
+                                }
+                                const divText = div.textContent;
+                                const divIndex = divText.toLowerCase().indexOf(q);
+                                if (divIndex !== -1) {
+                                    const regex = new RegExp(`(${q.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+                                    div.innerHTML = divText.replace(regex, '<mark class="p-0 bg-warning text-dark">$1</mark>');
+                                } else {
+                                    div.innerHTML = div.getAttribute('data-orig-html');
+                                }
+                            }
+                        } else {
+                            cell.innerHTML = origHTML;
+                        }
+                    }
+                });
+                
+                if (q === '' || hasMatch) {
+                    row.style.display = '';
+                    if (q !== '') matchCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            feedbackCount.innerText = `${matchCount} record${matchCount === 1 ? '' : 's'} found`;
+        });
+        
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearBtn.classList.add('d-none');
+            feedbackArea.classList.add('d-none');
+            
+            document.querySelectorAll('.registry-row').forEach(row => {
+                row.querySelectorAll('td').forEach(cell => {
+                    const origHTML = cell.getAttribute('data-orig-html');
+                    if (origHTML) cell.innerHTML = origHTML;
+                    
+                    const div = cell.querySelector('div.text-truncate');
+                    if (div) {
+                        const divOrigHTML = div.getAttribute('data-orig-html');
+                        if (divOrigHTML) div.innerHTML = divOrigHTML;
+                    }
+                });
+                row.style.display = '';
+            });
+            searchInput.focus();
+        });
+    }
+
+    function exportTableToExcel() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const filters = {
+            client_id: urlParams.get('client_id'),
+            area_id: urlParams.get('area_id'),
+            status: urlParams.get('status')
+        };
+        
+        if (window.pywebview && window.pywebview.api) {
+            window.pywebview.api.export_sales_xlsx(JSON.stringify(filters)).then(success => {
+                if (success) {
+                    alert("Export successful! Your records have been saved in .xlsx format.");
+                }
+            });
+        } else {
+            // Fallback for standard browser testing
+            window.location.href = `/api/export_sales?${urlParams.toString()}`;
+        }
+    }
+</script>
+{% endblock %}

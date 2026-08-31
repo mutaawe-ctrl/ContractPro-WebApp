@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - {{ system_name }}</title>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.css') }}">
+    <link href="{{ url_for('static', filename='css/inter.css') }}" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; height: 100vh; overflow: hidden; }
+        .welcome-container { max-width: 900px; height: 100%; display: flex; align-items: center; margin: 0 auto; transition: opacity 0.5s ease, transform 0.5s ease; }
+        .welcome-container.fade-out { opacity: 0; transform: scale(0.98); }
+        .glass-card { background: white; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e2e8f0; width: 100%; }
+        .hero-section { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; padding: 60px; position: relative; overflow: hidden; }
+        .hero-section::after { content: ''; position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(255,255,255,0.03); border-radius: 50%; }
+        .action-card { transition: all 0.2s ease; cursor: pointer; border: 1px solid #e2e8f0; border-radius: 16px; height: 100%; }
+        .action-card:hover { transform: translateY(-5px); border-color: #0d6efd; box-shadow: 0 10px 25px rgba(13,110,253,0.08); background: #f8fbff; }
+        .icon-box { width: 64px; height: 64px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; font-size: 2rem; }
+        .recent-item { padding: 12px 20px; border-radius: 10px; cursor: pointer; transition: background 0.2s; border: 1px solid transparent; }
+        .recent-item:hover { background: #f1f5f9; border-color: #e2e8f0; }
+        .badge-portable { background: #e0f2fe; color: #0369a1; font-weight: 600; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; }
+        
+        #loader { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.9); display: none; align-items: center; justify-content: center; 
+            z-index: 9999; backdrop-filter: blur(5px); flex-direction: column;
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        @keyframes shimmer {
+            0%   { background-position: -400px 0; }
+            100% { background-position:  400px 0; }
+        }
+        .skeleton-slot {
+            height: 52px;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #f1f5f9 25%, #e8edf3 50%, #f1f5f9 75%);
+            background-size: 800px 52px;
+            animation: shimmer 1.6s infinite linear;
+        }
+    </style>
+</head>
+<body>
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="fw-bold">Initializing Database...</div>
+    </div>
+
+    <div class="welcome-container" id="main-ui">
+        <div class="glass-card">
+            <div class="row g-0">
+                <div class="col-md-5 hero-section d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex align-items-center gap-3 mb-4">
+                            <div class="bg-white rounded-3 p-2" style="width: 50px; height: 50px;">
+                                <i class="bi bi-briefcase-fill text-primary" style="font-size: 1.8rem;"></i>
+                            </div>
+                            <h4 class="fw-bold mb-0">DATABASE<br><span style="color: #60a5fa;">MANAGER</span></h4>
+                        </div>
+                        <h1 class="display-6 fw-bold mt-5 mb-3">Welcome back.</h1>
+                        <p class="opacity-75 lead">The ultimate solution for your contract management and sales tracking.</p>
+                    </div>
+                    <div class="mt-auto">
+                        <small class="opacity-50">Version {{ app_version }} • Portable Edition</small><br>
+                        <small class="opacity-50">&copy; mutaawemandela +256784957400</small>
+                    </div>
+                </div>
+                <div class="col-md-7 p-5">
+                    <h5 class="fw-bold mb-4">Get Started</h5>
+                    <div class="row g-4 mb-5">
+                        <div class="col-6">
+                            <div class="action-card p-4 text-center" onclick="newProject()">
+                                <div class="icon-box bg-primary bg-opacity-10 text-primary mx-auto">
+                                    <i class="bi bi-plus-circle-fill"></i>
+                                </div>
+                                <h6 class="fw-bold mb-1">New Database</h6>
+                                <p class="small text-muted mb-0">Create a fresh .mdb file</p>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="action-card p-4 text-center" onclick="openProject()">
+                                <div class="icon-box bg-success bg-opacity-10 text-success mx-auto">
+                                    <i class="bi bi-folder-fill"></i>
+                                </div>
+                                <h6 class="fw-bold mb-1">Open Existing</h6>
+                                <p class="small text-muted mb-0">Load a saved .mdb file</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold mb-3">Recent Files</h5>
+                    <div class="recent-list d-flex flex-column gap-2">
+                        {% for i in range(3) %}
+                        {% set file = recent_files[i] if i < recent_files|length else none %}
+                        {% if file %}
+                        <div class="recent-item d-flex align-items-center gap-3" onclick="openFile('{{ file.path | replace('\\', '\\\\') }}')">
+                            <div class="rounded-2 d-flex align-items-center justify-content-center flex-shrink-0" style="width:38px;height:38px;background:#eff6ff;">
+                                <i class="bi bi-file-earmark-text text-primary" style="font-size:1.15rem;"></i>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="fw-semibold text-truncate" style="font-size:.9rem;">{{ file.name }}</div>
+                                <div class="text-truncate" style="font-size:.72rem;color:#94a3b8;">{{ file.path }}</div>
+                            </div>
+                            <span class="badge-portable flex-shrink-0">MDB</span>
+                        </div>
+                        {% else %}
+                        <div class="skeleton-slot"></div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="web-db-uploader" style="display:none;" accept=".db,.mdb" onchange="uploadDatabase(this)">
+
+    <script>
+        function startTransition() {
+            document.getElementById('main-ui').classList.add('fade-out');
+            document.getElementById('loader').style.display = 'flex';
+        }
+
+        function handleLoading(promise) {
+            if (!promise) return;
+            promise.then(function(success) {
+                if (success) {
+                    startTransition();
+                    setTimeout(function() {
+                        window.location.href = "/";
+                    }, 800);
+                }
+            });
+        }
+
+        function isDesktopMode() {
+            return window.pywebview && window.pywebview.api;
+        }
+
+        function newProject() { 
+            if (isDesktopMode()) {
+                handleLoading(window.pywebview.api.new_project()); 
+            } else {
+                let name = prompt("Enter a name for the new database (e.g. MyCompany):");
+                if (name) {
+                    let formData = new FormData();
+                    formData.append('name', name);
+                    startTransition();
+                    fetch('/api/web/new_project', {
+                        method: 'POST',
+                        body: formData
+                    }).then(r => r.json()).then(data => {
+                        if (data.success) {
+                            setTimeout(function() { window.location.href = "/"; }, 800);
+                        } else {
+                            document.getElementById('loader').style.display = 'none';
+                            alert("Error: " + (data.error || "Failed to create database"));
+                        }
+                    }).catch(err => {
+                        document.getElementById('loader').style.display = 'none';
+                        alert("Network error: " + err.message);
+                    });
+                }
+            }
+        }
+
+        function openProject() { 
+            if (isDesktopMode()) {
+                handleLoading(window.pywebview.api.open_project()); 
+            } else {
+                document.getElementById('web-db-uploader').click();
+            }
+        }
+
+        function openFile(path) { 
+            if (isDesktopMode()) {
+                handleLoading(window.pywebview.api.open_file(path)); 
+            } else {
+                let formData = new FormData();
+                formData.append('path', path);
+                startTransition();
+                fetch('/api/web/select_recent', {
+                    method: 'POST',
+                    body: formData
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        setTimeout(function() { window.location.href = "/"; }, 800);
+                    } else {
+                        document.getElementById('loader').style.display = 'none';
+                        alert("Error: " + (data.error || "Failed to load database"));
+                    }
+                }).catch(err => {
+                    document.getElementById('loader').style.display = 'none';
+                    alert("Network error: " + err.message);
+                });
+            }
+        }
+
+        function uploadDatabase(input) {
+            if (!input.files || input.files.length === 0) return;
+            let formData = new FormData();
+            formData.append('file', input.files[0]);
+            startTransition();
+            fetch('/api/web/upload_database', {
+                method: 'POST',
+                body: formData
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    setTimeout(function() { window.location.href = "/"; }, 800);
+                } else {
+                    document.getElementById('loader').style.display = 'none';
+                    alert("Error: " + (data.error || "Failed to upload database"));
+                }
+            }).catch(err => {
+                document.getElementById('loader').style.display = 'none';
+                alert("Network error: " + err.message);
+            });
+        }
+
+        function openDefaultWebDb() {
+            startTransition();
+            fetch('/api/web/open_default', {
+                method: 'POST'
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    setTimeout(function() { window.location.href = "/"; }, 800);
+                } else {
+                    document.getElementById('loader').style.display = 'none';
+                    alert("Failed to load default database.");
+                }
+            }).catch(err => {
+                document.getElementById('loader').style.display = 'none';
+                alert("Network error: " + err.message);
+            });
+        }
+
+        window.addEventListener('pywebviewready', function() {
+            console.log('JS API Ready');
+        });
+
+        window.addEventListener('DOMContentLoaded', function() {
+            sessionStorage.removeItem('action_center_notified');
+            setTimeout(function() {
+                if (!isDesktopMode()) {
+                    const btn = document.getElementById('default-web-btn');
+                    if (btn) btn.style.display = 'inline-block';
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

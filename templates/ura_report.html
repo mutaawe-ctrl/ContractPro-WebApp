@@ -1,0 +1,286 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<style>
+    .ura-kpi-card {
+        border-radius: 16px;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: default;
+    }
+    .ura-kpi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.12) !important; }
+    .ura-kpi-watermark {
+        position: absolute; right: -10px; bottom: -10px;
+        font-size: 5rem; opacity: 0.08; pointer-events: none;
+    }
+    @keyframes pulse-danger {
+        0%, 100% { box-shadow: 0 4px 6px rgba(239,68,68,0.15); }
+        50% { box-shadow: 0 4px 20px rgba(239,68,68,0.45); }
+    }
+    .card-unpaid-ura { animation: pulse-danger 2.5s ease-in-out infinite; }
+
+    .ura-table thead th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; font-weight: 700; border-bottom: 2px solid #e2e8f0; padding: 14px 12px; white-space: nowrap; }
+    .ura-table tbody tr { transition: background 0.15s; }
+    .ura-table tbody tr:hover { background: #f8fafc !important; }
+    .ura-table tbody td { padding: 11px 12px; font-size: 0.875rem; vertical-align: middle; border-color: #f1f5f9; }
+    .ura-table tbody tr.high-risk-ura-row { background: rgba(220,38,38,0.04) !important; }
+    .ura-table tbody tr.high-risk-ura-row:hover { background: rgba(220,38,38,0.08) !important; }
+
+    @keyframes ura-icon-pulse {
+        0%, 100% { opacity:1; transform: scale(1); }
+        50% { opacity:0.6; transform: scale(1.2); }
+    }
+    .ura-warn-icon { animation: ura-icon-pulse 1.4s ease-in-out infinite; color: #dc2626; margin-left: 5px; }
+
+    .filter-bar { background: #fff; border-radius: 14px; border: 1px solid #e8edf2; padding: 18px 24px; margin-bottom: 24px; }
+
+    @media print {
+        .no-print { display: none !important; }
+        .ura-kpi-card { box-shadow: none !important; break-inside: avoid; }
+        .card { border: 1px solid #ddd !important; box-shadow: none !important; }
+        body { font-size: 11px !important; }
+        thead { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
+    }
+</style>
+
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1"><i class="bi bi-receipt-cutoff text-danger me-2"></i>URA Tax Report</h2>
+        <p class="text-muted mb-0">Track VAT obligations on all VAT-rated invoices by URA status.</p>
+    </div>
+    <div class="d-flex gap-2 no-print">
+        <button onclick="window.print()" class="btn btn-sm fw-bold px-4 py-2" style="background: linear-gradient(135deg,#334155,#1e293b); color:#fff; border-radius: 10px; border:none; font-size:0.85rem;">
+            <i class="bi bi-printer me-2"></i>Print Report
+        </button>
+    </div>
+</div>
+
+<!-- Date Filter -->
+<div class="filter-bar no-print">
+    <form method="GET" action="{{ url_for('ura_report') }}" class="d-flex flex-wrap gap-3 align-items-end">
+        <div>
+            <label class="form-label fw-bold small text-uppercase text-muted mb-1" style="letter-spacing:.05em; font-size:0.7rem;">From Date</label>
+            <input type="date" name="start_date" class="form-control" style="border-radius:10px; min-width:160px; font-size:0.88rem;" value="{{ start_date }}">
+        </div>
+        <div>
+            <label class="form-label fw-bold small text-uppercase text-muted mb-1" style="letter-spacing:.05em; font-size:0.7rem;">To Date</label>
+            <input type="date" name="end_date" class="form-control" style="border-radius:10px; min-width:160px; font-size:0.88rem;" value="{{ end_date }}">
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary fw-bold px-4" style="border-radius:10px; font-size:0.88rem;">
+                <i class="bi bi-funnel me-1"></i>Apply Filter
+            </button>
+            {% if start_date or end_date %}
+            <a href="{{ url_for('ura_report') }}" class="btn btn-light fw-bold px-3" style="border-radius:10px; font-size:0.88rem; border:1px solid #e2e8f0;">
+                <i class="bi bi-x-circle me-1"></i>Clear
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- KPI Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 ura-kpi-card card-unpaid-ura position-relative" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing:.08em; font-size:.7rem;">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>UNPAID VAT DUE
+                    </span>
+                </div>
+                <div>
+                    <span class="text-white text-opacity-50 fw-bold d-block mb-1" style="font-size:.68rem; text-transform:uppercase; letter-spacing:.08em;">UGX</span>
+                    <h2 class="fw-bold mb-0 text-white" style="font-size:clamp(1.1rem,1.6vw,1.7rem); letter-spacing:-0.03em; line-height:1;">
+                        {{ "{:,.0f}".format(summary.get('unpaid_vat', 0)) }}
+                    </h2>
+                    <span class="text-white text-opacity-60 fw-bold d-block mt-1" style="font-size:.78rem;">
+                        {{ summary.get('unpaid_count', 0) }} invoice{{ 's' if summary.get('unpaid_count',0) != 1 else '' }}
+                    </span>
+                </div>
+            </div>
+            <i class="bi bi-exclamation-triangle-fill ura-kpi-watermark text-white"></i>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 ura-kpi-card position-relative" style="background: linear-gradient(135deg, #10b981 0%, #047857 100%);">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing:.08em; font-size:.7rem;">
+                        <i class="bi bi-check-circle-fill me-2"></i>VAT PAID TO URA
+                    </span>
+                </div>
+                <div>
+                    <span class="text-white text-opacity-50 fw-bold d-block mb-1" style="font-size:.68rem; text-transform:uppercase; letter-spacing:.08em;">UGX</span>
+                    <h2 class="fw-bold mb-0 text-white" style="font-size:clamp(1.1rem,1.6vw,1.7rem); letter-spacing:-0.03em; line-height:1;">
+                        {{ "{:,.0f}".format(summary.get('paid_vat', 0)) }}
+                    </h2>
+                    <span class="text-white text-opacity-60 fw-bold d-block mt-1" style="font-size:.78rem;">
+                        {{ summary.get('paid_count', 0) }} invoice{{ 's' if summary.get('paid_count',0) != 1 else '' }}
+                    </span>
+                </div>
+            </div>
+            <i class="bi bi-check-circle-fill ura-kpi-watermark text-white"></i>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 ura-kpi-card position-relative" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing:.08em; font-size:.7rem;">
+                        <i class="bi bi-arrow-left-right me-2"></i>VAT OFFSET
+                    </span>
+                </div>
+                <div>
+                    <span class="text-white text-opacity-50 fw-bold d-block mb-1" style="font-size:.68rem; text-transform:uppercase; letter-spacing:.08em;">UGX</span>
+                    <h2 class="fw-bold mb-0 text-white" style="font-size:clamp(1.1rem,1.6vw,1.7rem); letter-spacing:-0.03em; line-height:1;">
+                        {{ "{:,.0f}".format(summary.get('offset_vat', 0)) }}
+                    </h2>
+                    <span class="text-white text-opacity-60 fw-bold d-block mt-1" style="font-size:.78rem;">
+                        {{ summary.get('offset_count', 0) }} invoice{{ 's' if summary.get('offset_count',0) != 1 else '' }}
+                    </span>
+                </div>
+            </div>
+            <i class="bi bi-arrow-left-right ura-kpi-watermark text-white"></i>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 ura-kpi-card position-relative" style="background: linear-gradient(135deg, #64748b 0%, #334155 100%);">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="text-white text-opacity-80 fw-bold small text-uppercase" style="letter-spacing:.08em; font-size:.7rem;">
+                        <i class="bi bi-receipt me-2"></i>TOTAL VAT ON RECORD
+                    </span>
+                </div>
+                <div>
+                    <span class="text-white text-opacity-50 fw-bold d-block mb-1" style="font-size:.68rem; text-transform:uppercase; letter-spacing:.08em;">UGX</span>
+                    <h2 class="fw-bold mb-0 text-white" style="font-size:clamp(1.1rem,1.6vw,1.7rem); letter-spacing:-0.03em; line-height:1;">
+                        {{ "{:,.0f}".format(summary.get('total_vat', 0)) }}
+                    </h2>
+                    <span class="text-white text-opacity-60 fw-bold d-block mt-1" style="font-size:.78rem;">
+                        {{ summary.get('not_fileable_count', 0) }} not fileable
+                    </span>
+                </div>
+            </div>
+            <i class="bi bi-receipt ura-kpi-watermark text-white"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Detail Table -->
+<div class="card border-0 shadow-sm" style="border-radius:16px;">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-table text-primary me-2"></i>VAT-Rated Invoice Detail
+                <span class="badge bg-light text-muted border ms-2" style="font-size:0.78rem; font-weight:600;">{{ sales|length }} invoices</span>
+            </h5>
+            {% if start_date or end_date %}
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fw-semibold" style="font-size:0.78rem;">
+                <i class="bi bi-calendar3 me-1"></i>
+                {% if start_date %}From {{ start_date }}{% endif %}
+                {% if end_date %} To {{ end_date }}{% endif %}
+            </span>
+            {% endif %}
+        </div>
+
+        {% if sales %}
+        <div class="d-flex flex-wrap gap-3 mb-3 no-print">
+            <div class="d-flex align-items-center gap-2 small text-muted">
+                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size:0.85rem;"></i>
+                <span>High-Risk: Invoice collected but URA tax unpaid</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 small text-muted">
+                <span class="badge bg-danger">UNPAID</span>
+                <span class="badge bg-success">PAID</span>
+                <span class="badge bg-primary">OFFSET</span>
+                <span class="badge bg-secondary">NOT FILEABLE</span>
+            </div>
+        </div>
+        <div class="table-responsive rounded-3 border">
+            <table class="table ura-table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Entry ID</th>
+                        <th>Tax Invoice No.</th>
+                        <th>Client</th>
+                        <th>Completion Date</th>
+                        <th>Tax Invoice Date</th>
+                        <th>Contract Details</th>
+                        <th class="text-end">Contract Amt (UGX)</th>
+                        <th class="text-end text-info">VAT 18% (UGX)</th>
+                        <th>Payment Status</th>
+                        <th>URA Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in sales %}
+                {% set is_high_risk = s.is_high_risk %}
+                <tr class="{{ 'high-risk-ura-row' if is_high_risk else '' }}">
+                    <td class="fw-bold text-primary">{{ s.entry_id or '-' }}</td>
+                    <td class="fw-bold">{{ s.invoice_code or '-' }}</td>
+                    <td>{{ s.client_name or '-' }}</td>
+                    <td class="text-muted">{{ s.completion_date_fmt }}</td>
+                    <td class="text-muted">{{ s.tax_invoice_date_fmt }}</td>
+                    <td>
+                        <div class="text-truncate" style="max-width:220px; font-size:0.84rem;" title="{{ s.contract_details }}">
+                            {{ s.contract_details or '-' }}
+                        </div>
+                    </td>
+                    <td class="text-end fw-bold text-dark">{{ s.total_fmt }}</td>
+                    <td class="text-end fw-bold text-info">{{ s.vat_amount_fmt }}</td>
+                    <td>
+                        {% if s.payment_status == 'PAID' %}
+                            <span class="badge bg-success">PAID</span>
+                        {% elif s.payment_status in ('BAD DEBT', 'CANCELLED') %}
+                            <span class="badge bg-secondary">{{ s.payment_status }}</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">{{ s.payment_status or '-' }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if s.ura_status == 'PAID' %}
+                            <span class="badge bg-success">PAID</span>
+                        {% elif s.ura_status == 'UNPAID' %}
+                            <span class="badge bg-danger">UNPAID</span>
+                        {% elif s.ura_status == 'OFFSET' %}
+                            <span class="badge bg-primary">OFFSET</span>
+                        {% elif s.ura_status == 'PENDING' %}
+                            <span class="badge bg-warning text-dark">PENDING</span>
+                        {% elif s.ura_status == 'CANCELLED' %}
+                            <span class="badge bg-dark">CANCELLED</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ s.ura_status or '-' }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+                <tfoot class="table-light border-top">
+                    <tr class="fw-bold">
+                        <td colspan="6" class="text-end text-uppercase text-muted" style="font-size:0.78rem; letter-spacing:.05em;">TOTALS</td>
+                        <td class="text-end fw-bold text-dark">
+                            {{ "{:,.0f}".format(sales | sum(attribute='total')) }}
+                        </td>
+                        <td class="text-end fw-bold text-info">
+                            {{ "{:,.0f}".format(summary.get('total_vat', 0)) }}
+                        </td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox text-muted" style="font-size:3rem; opacity:0.35;"></i>
+            <p class="text-muted fw-semibold mt-3">No VAT-rated invoices found for the selected period.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
