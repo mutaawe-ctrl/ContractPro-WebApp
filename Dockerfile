@@ -20,9 +20,9 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY . .
 
-# Expose port 8080
+# Cloud Run sets PORT environment variable (defaults to 8080)
 ENV PORT=8080
 EXPOSE 8080
 
-# Start Flask app
-CMD ["python", "-m", "flask", "--app", "app", "run", "--host", "0.0.0.0"]
+# Run with Gunicorn bound to 0.0.0.0:${PORT}
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 8 --timeout 0 app:app"]
